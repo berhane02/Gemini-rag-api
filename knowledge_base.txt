@@ -1,0 +1,8 @@
+The Google Gemini API is a powerful tool for building generative AI applications.
+It allows developers to access Google's latest large language models.
+RAG stands for Retrieval-Augmented Generation.
+It combines the power of LLMs with external knowledge sources.
+Next.js is a React framework for building full-stack web applications.
+Auth0 provides a universal authentication & authorization platform for web, mobile, and legacy applications.
+Antigravity is a code generation agent developed by Google Deepmind.
+It is designed to help users build complex applications through pair programming.
