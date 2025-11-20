@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth0 } from '@/lib/auth0';
 
 export async function GET(
@@ -29,11 +29,15 @@ export async function GET(
             return authClient.handleLogin(loginReq);
         case 'logout':
             // Redirect to home page after logout
-            // Create a new request with returnTo parameter
-            const logoutUrl = new URL(req.url);
-            logoutUrl.searchParams.set('returnTo', '/home');
-            const logoutReq = new NextRequest(logoutUrl.toString(), req);
-            return authClient.handleLogout(logoutReq);
+            // Don't modify the URL - let Auth0 handle it naturally
+            // The returnTo will be handled by signOutReturnToPath in auth0.ts config
+            try {
+                return authClient.handleLogout(req);
+            } catch (error) {
+                console.error('Logout error:', error);
+                // If logout fails, redirect to home manually
+                return NextResponse.redirect(new URL('/home', req.url));
+            }
         case 'callback':
             // Callback processes authentication and redirects to signInReturnToPath (/chat)
             // Don't modify the callback URL - let Auth0 SDK handle it automatically
