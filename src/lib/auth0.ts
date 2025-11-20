@@ -26,6 +26,7 @@ export const auth0 = new Auth0Client({
     ...(secret && { secret }),
     appBaseUrl,
     signInReturnToPath: '/chat', // Redirect to chat page after successful login (chat includes file upload)
+    signOutReturnToPath: '/home', // Redirect to home page after logout
     routes: {
         login: '/api/auth/login',
         logout: '/api/auth/logout',

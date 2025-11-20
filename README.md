@@ -30,8 +30,10 @@ GOOGLE_API_KEY='your-google-api-key'
 2. Create a new Application (choose "Regular Web Application")
 3. Configure the following:
    - **Allowed Callback URLs**: `http://127.0.0.1:3000/api/auth/callback`
-   - **Allowed Logout URLs**: `http://127.0.0.1:3000`
+   - **Allowed Logout URLs**: `http://127.0.0.1:3000` (IMPORTANT: Must include this exact URL)
    - **Allowed Web Origins**: `http://127.0.0.1:3000`
+   
+   **Note**: The "Allowed Logout URLs" field must contain `http://127.0.0.1:3000` exactly as shown. This is where Auth0 redirects users after logout.
 4. Copy your Domain, Client ID, and Client Secret to `.env.local`
 5. Generate AUTH0_SECRET: Run `openssl rand -hex 32` in your terminal
 
