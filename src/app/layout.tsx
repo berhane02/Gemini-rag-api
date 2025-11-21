@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Auth0Provider } from '@auth0/nextjs-auth0/client';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { UserProvider } from '@/contexts/UserContext';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,6 +47,8 @@ export default function RootLayout({
       </head>
       <Auth0Provider
         basePath="/api/auth"
+        cacheLocation="localstorage"
+        skipRedirectCallback={false}
       >
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -57,7 +60,9 @@ export default function RootLayout({
             storageKey="theme"
             disableTransitionOnChange={false}
           >
-            {children}
+            <UserProvider>
+              {children}
+            </UserProvider>
           </ThemeProvider>
         </body>
       </Auth0Provider>

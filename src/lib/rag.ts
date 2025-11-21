@@ -113,7 +113,17 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
                     }
                     
                     if (text && text.trim()) {
-                        controller.enqueue(encoder.encode(text));
+                        // Check if controller is still open before enqueueing
+                        try {
+                            controller.enqueue(encoder.encode(text));
+                        } catch (enqueueError: any) {
+                            // If controller is closed, stop processing
+                            if (enqueueError?.code === 'ERR_INVALID_STATE' || enqueueError?.message?.includes('closed')) {
+                                console.warn('Stream controller was closed, stopping iteration');
+                                return;
+                            }
+                            throw enqueueError;
+                        }
                     }
                 }
                 
@@ -122,10 +132,22 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
                 }
             } catch (error) {
                 console.error('Error in iteratorToStream:', error);
-                controller.error(error);
+                // Only error if controller is still open
+                try {
+                    controller.error(error);
+                } catch (errorError) {
+                    // Controller might already be closed, ignore
+                    console.warn('Could not send error to closed controller');
+                }
                 return;
             }
-            controller.close();
+            // Only close if controller is still open
+            try {
+                controller.close();
+            } catch (closeError) {
+                // Controller might already be closed, ignore
+                console.warn('Controller was already closed');
+            }
         }
     });
 }
@@ -136,6 +158,22 @@ export async function queryRAG(query: string) {
     }
 
     try {
+        // Check if files have been uploaded before querying
+        const { hasUploadedFiles } = await import('./gemini-file-search');
+        if (!hasUploadedFiles()) {
+            const noFilesMessage = `**No Documents Uploaded**
+
+I can't answer questions yet because no documents have been uploaded to the knowledge base.
+
+**To get started:**
+1. Upload a document using the file upload area above
+2. Wait a few seconds for the document to be processed
+3. Then ask your question
+
+Once you upload a document, I'll be able to answer questions about its content!`;
+            return createMockStream(noFilesMessage);
+        }
+
         // Try to use Gemini File Search first
         const { queryWithFileSearchStream } = await import('./gemini-file-search');
         const response = await queryWithFileSearchStream(query);

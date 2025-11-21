@@ -13,10 +13,7 @@ export default function ThemeToggle() {
         setMounted(true);
     }, []);
 
-    useEffect(() => {
-        // Debug: log theme changes
-        console.log('Theme changed:', { theme, resolvedTheme });
-    }, [theme, resolvedTheme]);
+    // Removed debug logging that could cause re-renders
 
     if (!mounted) {
         return (
@@ -29,7 +26,6 @@ export default function ThemeToggle() {
 
     const toggleTheme = () => {
         const newTheme = isDark ? 'light' : 'dark';
-        console.log('Setting theme to:', newTheme);
         setTheme(newTheme);
     };
 

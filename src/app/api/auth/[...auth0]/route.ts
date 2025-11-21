@@ -28,15 +28,30 @@ export async function GET(
             const loginReq = new NextRequest(loginUrl.toString(), req);
             return authClient.handleLogin(loginReq);
         case 'logout':
-            // Redirect to home page after logout
-            // Don't modify the URL - let Auth0 handle it naturally
-            // The returnTo will be handled by signOutReturnToPath in auth0.ts config
+            // Clear session and invalidate token
             try {
-                return authClient.handleLogout(req);
+                // Clear the session cookie
+                const logoutResponse = await authClient.handleLogout(req);
+                
+                // Clear all Auth0-related cookies
+                const response = logoutResponse instanceof NextResponse 
+                    ? logoutResponse 
+                    : NextResponse.redirect(new URL('/home', req.url));
+                
+                // Clear cookies
+                response.cookies.delete('appSession');
+                response.cookies.delete('appSession.0');
+                response.cookies.delete('appSession.1');
+                
+                return response;
             } catch (error) {
                 console.error('Logout error:', error);
-                // If logout fails, redirect to home manually
-                return NextResponse.redirect(new URL('/home', req.url));
+                // If logout fails, redirect to home manually and clear cookies
+                const response = NextResponse.redirect(new URL('/home', req.url));
+                response.cookies.delete('appSession');
+                response.cookies.delete('appSession.0');
+                response.cookies.delete('appSession.1');
+                return response;
             }
         case 'callback':
             // Callback processes authentication and redirects to signInReturnToPath (/chat)

@@ -3,6 +3,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { User, Sparkles, Pencil } from 'lucide-react';
+import { useUserContext } from '@/contexts/UserContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion } from 'framer-motion';
@@ -24,30 +25,50 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message, messageIndex, onEdit }: MessageBubbleProps) {
     const isUser = message.role === 'user';
+    const { user } = useUserContext();
 
     return (
-        <div className={cn("group flex w-full items-start gap-4 px-4 py-6", !isUser && "bg-transparent")}>
+        <div className={cn("group flex w-full items-start gap-4 px-4 py-6 relative", !isUser && "bg-transparent")}>
             <div className={cn(
-                "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm",
+                "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm overflow-hidden",
                 isUser
                     ? "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
                     : "bg-gradient-to-tr from-blue-500 to-cyan-500 text-white border-transparent"
             )}>
-                {isUser ? <User size={18} /> : <Sparkles size={18} />}
+                {isUser ? (
+                    user?.picture ? (
+                        <img
+                            src={user.picture}
+                            alt={user.name || 'User'}
+                            className="h-full w-full object-cover"
+                        />
+                    ) : (
+                        <User size={18} />
+                    )
+                ) : (
+                    <Sparkles size={18} />
+                )}
             </div>
-            <div className="flex-1 space-y-2 overflow-hidden">
+            <div className="flex-1 space-y-2 overflow-hidden relative">
                 {isUser && onEdit && (
-                    <div className="flex items-center justify-between mb-1">
-                        <div className="flex-1" />
+                    <div className="absolute top-0 right-0 z-10">
                         <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            whileHover={{ scale: 1.1 }}
+                            initial={{ opacity: 0.5, scale: 0.9 }}
+                            animate={{ opacity: 0.7 }}
+                            whileHover={{ scale: 1.1, opacity: 1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => onEdit(messageIndex, message.content)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (onEdit) {
+                                    onEdit(messageIndex, message.content);
+                                }
+                            }}
+                            className="p-2 rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
                             title="Edit message"
+                            aria-label="Edit message"
                         >
-                            <Pencil size={14} />
+                            <Pencil size={16} />
                         </motion.button>
                     </div>
                 )}

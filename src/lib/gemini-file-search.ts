@@ -421,3 +421,13 @@ export async function verifyStoreHasFiles() {
         return false;
     }
 }
+
+// Function to check if any files have been uploaded
+export function hasUploadedFiles(): boolean {
+    return uploadedFiles.size > 0;
+}
+
+// Function to get count of uploaded files
+export function getUploadedFilesCount(): number {
+    return uploadedFiles.size;
+}

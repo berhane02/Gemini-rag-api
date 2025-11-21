@@ -1,65 +1,56 @@
 'use client';
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import ChatInterface from '@/components/ChatInterface';
 
 export default function ChatPage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUserContext();
   const router = useRouter();
   const hasRedirected = useRef(false);
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Memoize user state to prevent unnecessary re-renders
-  const isAuthenticated = useMemo(() => !!user, [user]);
+  const mountedRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
+
+  // Track mount state
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Memoize user ID to prevent unnecessary re-renders
+  const currentUserId = user?.sub || null;
+  if (currentUserId !== userIdRef.current) {
+    userIdRef.current = currentUserId;
+  }
 
   // Redirect to home page if not authenticated
-  // This hook must be called before any conditional returns
   useEffect(() => {
-    // Don't do anything while loading
-    if (isLoading) {
+    // Don't do anything while loading or before mount
+    if (isLoading || !mountedRef.current) {
       return;
     }
 
-    // If user exists, reset redirect flag and clear any pending redirects
-    if (isAuthenticated) {
+    // If user is authenticated, clear redirect flag and return early
+    if (user) {
       hasRedirected.current = false;
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current);
-        redirectTimeoutRef.current = null;
-      }
       return;
     }
 
-    // Only redirect once and only when we're sure the user is not authenticated
-    // Skip if we've already redirected
+    // Only redirect once - if we've already redirected, don't do anything
     if (hasRedirected.current) {
       return;
     }
 
-    // Clear any existing timeout before setting a new one
-    if (redirectTimeoutRef.current) {
-      clearTimeout(redirectTimeoutRef.current);
-    }
-    
-    // Add a delay to prevent rapid re-renders from causing redirect loops
-    redirectTimeoutRef.current = setTimeout(() => {
-      // Double-check user state before redirecting
-      if (!isAuthenticated && !hasRedirected.current) {
-        hasRedirected.current = true;
-        router.push('/home');
-      }
-    }, 300);
+    // Set redirect flag immediately to prevent multiple redirects
+    hasRedirected.current = true;
 
-    // Cleanup timeout on unmount or dependency change
-    return () => {
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current);
-        redirectTimeoutRef.current = null;
-      }
-    };
-  }, [isAuthenticated, isLoading, router]);
+    // Redirect to home
+    router.push('/home');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userIdRef.current, isLoading]); // Only depend on userId, not entire user object
 
   // Show loading state
   if (isLoading) {
@@ -74,11 +65,11 @@ export default function ChatPage() {
   }
 
   // If not authenticated, show nothing (will redirect via useEffect)
-  if (!isAuthenticated) {
+  if (!user) {
     return null;
   }
 
   // If authenticated, show chat interface
-  return <ChatInterface />;
+  // Use user?.sub as key to prevent remounting when user object reference changes
+  return <ChatInterface key={user?.sub || 'default'} user={user} />;
 }
-
