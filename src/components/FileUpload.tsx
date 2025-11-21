@@ -45,7 +45,8 @@ export default function FileUpload() {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.details || 'Upload failed');
+                const errorMessage = errorData.error || errorData.details || `Upload failed: ${response.status}`;
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();
@@ -54,7 +55,19 @@ export default function FileUpload() {
             // Keep file info visible, don't auto-remove
         } catch (error) {
             console.error('Upload error:', error);
-            alert(error instanceof Error ? error.message : 'Failed to upload file');
+            let errorMessage = 'Failed to upload file';
+            
+            if (error instanceof Error) {
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMessage = 'Network error: Unable to connect to the server. Please check your connection and try again.';
+                } else if (error.message.includes('Unauthorized')) {
+                    errorMessage = 'Authentication error: Please log in again.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            alert(errorMessage);
         } finally {
             setUploading(false);
         }
@@ -68,7 +81,7 @@ export default function FileUpload() {
     };
 
     return (
-        <div className="w-full max-w-md mx-auto mb-4">
+        <div className="w-full max-w-sm sm:max-w-sm md:max-w-sm mx-auto mb-3 px-2 sm:px-0">
             <AnimatePresence mode="wait">
                 {!file ? (
                     <motion.div
@@ -81,7 +94,7 @@ export default function FileUpload() {
                         <div
                             {...getRootProps()}
                             className={clsx(
-                                'relative border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-300 overflow-hidden group',
+                                'relative border-2 border-dashed rounded-lg p-2 sm:p-3 text-center cursor-pointer transition-all duration-300 overflow-hidden group',
                                 isDragActive
                                     ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 scale-105 shadow-lg shadow-blue-500/20'
                                     : 'border-blue-300 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-600 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/10 dark:to-gray-900 hover:shadow-lg hover:shadow-blue-500/10'
@@ -96,18 +109,18 @@ export default function FileUpload() {
                                 transition={{ duration: 0.2 }}
                                 className="relative z-10"
                             >
-                                <div className="relative inline-block mb-2">
+                                <div className="relative inline-block mb-1 sm:mb-1.5">
                                     <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl" />
-                                    <Upload className="relative mx-auto h-8 w-8 text-blue-500 dark:text-blue-400" />
+                                    <Upload className="relative mx-auto h-5 w-5 sm:h-6 sm:w-6 text-blue-500 dark:text-blue-400" />
                                 </div>
-                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <p className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5 leading-tight">
                                     {isDragActive ? (
                                         <span className="text-blue-600 dark:text-blue-400 font-semibold">Drop here...</span>
                                     ) : (
-                                        'Drag & drop or click to select'
+                                        'Drag & drop or click'
                                     )}
                                 </p>
-                                <p className="text-xs text-blue-500 dark:text-blue-400 font-medium">
+                                <p className="text-[10px] sm:text-xs text-blue-500 dark:text-blue-400 font-medium">
                                     TXT, MD, PDF (max 10MB)
                                 </p>
                             </motion.div>
@@ -127,39 +140,39 @@ export default function FileUpload() {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className={`flex items-center justify-between bg-white dark:bg-gray-900 border rounded-xl p-3 shadow-md ${
+                                className={`flex items-center justify-between bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-md ${
                                     isDuplicate 
                                         ? 'border-yellow-500/50 dark:border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10'
                                         : 'border-green-500/50 dark:border-green-500/30 bg-green-50/30 dark:bg-green-950/10'
                                 }`}
                             >
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
                                         transition={{ delay: 0.1, type: "spring" }}
-                                        className={`p-1.5 rounded-lg shadow-sm ${
+                                        className={`p-1 sm:p-1.5 rounded-lg shadow-sm ${
                                             isDuplicate
                                                 ? 'bg-gradient-to-br from-yellow-500 to-orange-500'
                                                 : 'bg-gradient-to-br from-green-500 to-emerald-500'
                                         }`}
                                     >
-                                        <CheckCircle2 className="h-4 w-4 text-white" />
+                                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                                     </motion.div>
-                                    <span className={`text-xs font-medium ${
+                                    <span className={`text-[10px] sm:text-xs font-medium ${
                                         isDuplicate
                                             ? 'text-yellow-600 dark:text-yellow-400'
                                             : 'text-green-600 dark:text-green-400'
                                     }`}>
-                                        {isDuplicate ? 'Already Exists' : 'Uploaded'}
+                                        {isDuplicate ? 'Exists' : 'Done'}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-3 ml-4">
+                                <div className="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4">
                                     <div className="text-right">
-                                        <p className="text-xs font-semibold text-gray-900 dark:text-white truncate max-w-[150px]">
+                                        <p className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate max-w-[100px] sm:max-w-[150px]">
                                             {file.name}
                                         </p>
-                                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                        <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium">
                                             {(file.size / 1024).toFixed(1)} KB
                                         </p>
                                     </div>
@@ -176,24 +189,24 @@ export default function FileUpload() {
                         ) : (
                             // Upload state: Show upload button
                             <div className={clsx(
-                                "bg-white dark:bg-gray-900 border rounded-xl p-3 shadow-lg transition-all duration-300",
+                                "bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-lg transition-all duration-300",
                                 "border-blue-200 dark:border-blue-800"
                             )}>
                                 <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1">
                                         <motion.div
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
                                             transition={{ delay: 0.1, type: "spring" }}
-                                            className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md shadow-blue-500/30"
+                                            className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md shadow-blue-500/30"
                                         >
-                                            <File className="h-4 w-4 text-white" />
+                                            <File className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                                         </motion.div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                                            <p className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate">
                                                 {file.name}
                                             </p>
-                                            <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                            <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium">
                                                 {(file.size / 1024).toFixed(1)} KB
                                             </p>
                                         </div>

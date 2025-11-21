@@ -19,18 +19,29 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
 
     // Update input when initialValue changes (for editing)
     useEffect(() => {
-        if (editing && initialValue) {
+        if (editing && initialValue && input !== initialValue) {
+            // Only update if the value actually changed to prevent unnecessary re-renders
             setInput(initialValue);
-            // Focus the textarea when editing
-            setTimeout(() => {
-                textareaRef.current?.focus();
-                const length = initialValue.length;
-                textareaRef.current?.setSelectionRange(length, length);
-            }, 100);
-        } else if (!editing) {
+            // Focus the textarea when editing and scroll cursor to end
+            const timeoutId = setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                    const length = initialValue.length;
+                    textareaRef.current.setSelectionRange(length, length);
+                    // Use requestAnimationFrame to prevent scroll-triggered re-renders
+                    requestAnimationFrame(() => {
+                        if (textareaRef.current) {
+                            textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    });
+                }
+            }, 200);
+            return () => clearTimeout(timeoutId);
+        } else if (!editing && !initialValue && input) {
+            // Only clear input when not editing and no initial value
             setInput('');
         }
-    }, [initialValue, editing]);
+    }, [editing, initialValue]); // Removed input from dependencies to prevent loops
 
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
