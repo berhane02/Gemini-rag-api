@@ -1,10 +1,20 @@
 'use client';
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import LandingPage from '@/components/LandingPage';
 
 export default function HomePageRoute() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUserContext();
+  const router = useRouter();
+
+  // Redirect authenticated users to chat
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.push('/chat');
+    }
+  }, [user, isLoading, router]);
 
   // Show loading state
   if (isLoading) {
@@ -18,7 +28,12 @@ export default function HomePageRoute() {
     );
   }
 
-  // Always show home page (for both authenticated and unauthenticated users)
+  // If authenticated, show nothing (will redirect via useEffect)
+  if (user) {
+    return null;
+  }
+
+  // Show landing page for unauthenticated users
   return <LandingPage />;
 }
 

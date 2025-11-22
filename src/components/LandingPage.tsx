@@ -2,17 +2,25 @@
 
 import { ArrowRight, Sparkles, Zap, Shield, Brain, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
+import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
 import AuthButton from './AuthButton';
 
 export default function LandingPage() {
-    const { user } = useUser();
+    const { user } = useUserContext();
+    const clerk = useClerk();
     const router = useRouter();
     
     const handleLogin = () => {
-        router.push('/login');
+        // If user is already authenticated, go to chat
+        if (user) {
+            router.push('/chat');
+            return;
+        }
+        
+        clerk.openSignIn({ redirectUrl: '/chat' });
     };
     
     const handleGoToChat = () => {

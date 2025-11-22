@@ -79,7 +79,7 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
     const isButtonEnabled = hasInput && !disabled;
 
     return (
-        <form onSubmit={handleSubmit} className="relative w-full max-w-3xl mx-auto p-4">
+        <form onSubmit={handleSubmit} className="relative w-full max-w-[2560px] mx-auto p-4">
             <motion.div
                 initial={false}
                 animate={{

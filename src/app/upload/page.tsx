@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import FileUpload from '@/components/FileUpload';
@@ -8,7 +8,7 @@ import AuthButton from '@/components/AuthButton';
 import ThemeToggle from '@/components/ThemeToggle';
 
 export default function UploadPage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUserContext();
   const router = useRouter();
 
   // Redirect to home page if not authenticated

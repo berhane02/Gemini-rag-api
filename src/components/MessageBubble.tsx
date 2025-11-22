@@ -28,30 +28,31 @@ export default function MessageBubble({ message, messageIndex, onEdit }: Message
     const { user } = useUserContext();
 
     return (
-        <div className={cn("group flex w-full items-start gap-4 px-4 py-6 relative", !isUser && "bg-transparent")}>
+        <div className={cn("message-bubble group flex w-full items-start gap-4 px-2 sm:px-4 md:px-6 lg:px-8 py-6 relative", !isUser && "bg-transparent", isUser ? "message-bubble-user" : "message-bubble-gemini")}>
             <div className={cn(
-                "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm overflow-hidden",
+                "message-avatar flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm overflow-hidden",
                 isUser
-                    ? "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
-                    : "bg-gradient-to-tr from-blue-500 to-cyan-500 text-white border-transparent"
+                    ? "message-avatar-user bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+                    : "message-avatar-gemini bg-gradient-to-tr from-blue-500 to-cyan-500 text-white border-transparent"
             )}>
                 {isUser ? (
                     user?.picture ? (
                         <img
                             src={user.picture}
                             alt={user.name || 'User'}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover object-center"
+                            style={{ objectPosition: 'center center' }}
                         />
                     ) : (
-                        <User size={18} />
+                        <User size={18} className="flex-shrink-0" />
                     )
                 ) : (
-                    <Sparkles size={18} />
+                    <Sparkles size={18} className="flex-shrink-0" />
                 )}
             </div>
-            <div className="flex-1 space-y-2 overflow-hidden relative">
+            <div className="message-content flex-1 space-y-2 overflow-hidden relative">
                 {isUser && onEdit && (
-                    <div className="absolute top-0 right-0 z-10">
+                    <div className="message-edit-button-container absolute top-0 right-0 z-10">
                         <motion.button
                             initial={{ opacity: 0.5, scale: 0.9 }}
                             animate={{ opacity: 0.7 }}
@@ -64,7 +65,7 @@ export default function MessageBubble({ message, messageIndex, onEdit }: Message
                                     onEdit(messageIndex, message.content);
                                 }
                             }}
-                            className="p-2 rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                            className="message-edit-button p-2 rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
                             title="Edit message"
                             aria-label="Edit message"
                         >
@@ -72,7 +73,7 @@ export default function MessageBubble({ message, messageIndex, onEdit }: Message
                         </motion.button>
                     </div>
                 )}
-                <div className="prose prose-slate dark:prose-invert max-w-none break-words leading-7">
+                <div className="message-text prose prose-slate dark:prose-invert max-w-none break-words leading-7">
                     <ReactMarkdown
                         components={{
                             pre: ({ node, ...props }) => (

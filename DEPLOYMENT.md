@@ -26,35 +26,27 @@ Go to: **Settings** → **Environment Variables**
 Add these variables:
 
 ```bash
-AUTH0_SECRET=<generate-new-with-openssl-rand-hex-32>
-AUTH0_BASE_URL=https://your-app-name.vercel.app
-AUTH0_ISSUER_BASE_URL=https://your-tenant.auth0.com
-AUTH0_CLIENT_ID=your-client-id
-AUTH0_CLIENT_SECRET=your-client-secret
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_...
+CLERK_SECRET_KEY=sk_live_...
 GOOGLE_API_KEY=your-google-api-key
 ```
 
-**Important:** Generate a NEW `AUTH0_SECRET` for production!
+**Important:** Use production keys (`pk_live_` and `sk_live_`) for Clerk, not test keys!
 
-## Step 4: Update Auth0 Dashboard
+## Step 4: Update Clerk Dashboard
 
-Go to: [Auth0 Dashboard](https://manage.auth0.com) → Your App → Settings
+Go to: [Clerk Dashboard](https://dashboard.clerk.com) → Your App → Settings → Paths
 
-Update these fields (add production URLs):
+Update these fields:
 
-**Allowed Callback URLs:**
+**After sign-in URL:**
 ```
-http://127.0.0.1:3000/api/auth/callback,https://your-app-name.vercel.app/api/auth/callback
-```
-
-**Allowed Logout URLs:**
-```
-http://127.0.0.1:3000,https://your-app-name.vercel.app
+https://your-app-name.vercel.app/chat
 ```
 
-**Allowed Web Origins:**
+**After sign-up URL:**
 ```
-http://127.0.0.1:3000,https://your-app-name.vercel.app
+https://your-app-name.vercel.app/chat
 ```
 
 Click **"Save Changes"**
@@ -80,10 +72,10 @@ Click **"Save Changes"**
 - Verify all environment variables are set
 - Check for TypeScript errors
 
-**Auth0 errors?**
-- Verify URLs match exactly in Auth0 Dashboard
-- Check `AUTH0_BASE_URL` matches Vercel URL
-- Ensure `AUTH0_SECRET` is set
+**Clerk errors?**
+- Verify Clerk keys are set correctly in Vercel
+- Check that Clerk Dashboard URLs match your Vercel URL
+- Ensure you're using production keys (`pk_live_`/`sk_live_`) in production
 
 **Runtime errors?**
 - Check Vercel function logs
@@ -93,9 +85,6 @@ Click **"Save Changes"**
 ## Quick Commands
 
 ```bash
-# Generate new AUTH0_SECRET
-openssl rand -hex 32
-
 # Deploy via CLI (optional)
 npm i -g vercel
 vercel
@@ -103,4 +92,3 @@ vercel
 # Check deployment status
 vercel ls
 ```
-

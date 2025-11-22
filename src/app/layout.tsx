@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Auth0Provider } from '@auth0/nextjs-auth0/client';
+import { ClerkProvider } from '@clerk/nextjs';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
 import "./globals.css";
@@ -32,6 +32,54 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Suppress Self-XSS warning to prevent user panic
+                (function() {
+                  var originalWarn = console.warn;
+                  var originalError = console.error;
+                  
+                  console.warn = function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    var message = args.join(' ');
+                    // Filter out Self-XSS warnings
+                    if (message && typeof message === 'string' && 
+                        (message.includes('Self-XSS') || 
+                         message.includes('impersonate you') ||
+                         message.includes('steal your information'))) {
+                      return; // Suppress the warning
+                    }
+                    originalWarn.apply(console, args);
+                  };
+                  
+                  console.error = function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    var message = args.join(' ');
+                    // Filter out Self-XSS warnings
+                    if (message && typeof message === 'string' && 
+                        (message.includes('Self-XSS') || 
+                         message.includes('impersonate you') ||
+                         message.includes('steal your information'))) {
+                      return; // Suppress the warning
+                    }
+                    originalError.apply(console, args);
+                  };
+                  
+                  // Also intercept console.log for the warning message
+                  var originalLog = console.log;
+                  console.log = function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    var message = args.join(' ');
+                    // Filter out Self-XSS warnings
+                    if (message && typeof message === 'string' && 
+                        (message.includes('Self-XSS') || 
+                         message.includes('impersonate you') ||
+                         message.includes('steal your information') ||
+                         message.includes('Do not enter or paste code'))) {
+                      return; // Suppress the warning
+                    }
+                    originalLog.apply(console, args);
+                  };
+                })();
+                
                 try {
                   var theme = localStorage.getItem('theme');
                   if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -40,15 +88,93 @@ export default function RootLayout({
                     document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {}
+                
+                // Remove Next.js logo SVG elements
+                function removeNextLogo() {
+                  try {
+                    // Remove specific Next.js logo SVG (40x40 with viewBox="0 0 40 40")
+                    var nextLogoSvgs = document.querySelectorAll('svg[width="40"][height="40"][viewBox="0 0 40 40"], svg[viewBox="0 0 40 40"]:has(path.paused)');
+                    nextLogoSvgs.forEach(function(svg) {
+                      svg.style.display = 'none';
+                      svg.style.visibility = 'hidden';
+                      svg.style.opacity = '0';
+                      svg.style.width = '0';
+                      svg.style.height = '0';
+                      var parent = svg.parentElement;
+                      if (parent) {
+                        parent.style.display = 'none';
+                        parent.style.visibility = 'hidden';
+                      }
+                    });
+                    
+                    // Remove path elements with paused class or next_logo in stroke
+                    var paths = document.querySelectorAll('path.paused, path[stroke*="next_logo"], path[stroke-dasharray="11.6"], path[stroke-dasharray="29.6"]');
+                    paths.forEach(function(path) {
+                      path.style.display = 'none';
+                      path.style.visibility = 'hidden';
+                      path.style.opacity = '0';
+                    });
+                    
+                    // Remove SVG containers with Next.js logo
+                    var svgs = document.querySelectorAll('svg');
+                    svgs.forEach(function(svg) {
+                      var hasNextLogo = svg.querySelector('path.paused, path[stroke*="next_logo"], path[stroke-dasharray="11.6"], path[stroke-dasharray="29.6"], linearGradient[id*="next_logo_paint"], mask[id*="next_logo_mask"]');
+                      if (hasNextLogo || svg.getAttribute('viewBox') === '0 0 40 40') {
+                        var parent = svg.closest('div');
+                        if (parent) {
+                          var style = window.getComputedStyle(parent);
+                          if (style.position === 'fixed' && (style.bottom !== 'auto' || style.left !== 'auto')) {
+                            parent.style.display = 'none';
+                            parent.style.visibility = 'hidden';
+                          }
+                        }
+                        svg.style.display = 'none';
+                        svg.style.visibility = 'hidden';
+                        svg.style.width = '0';
+                        svg.style.height = '0';
+                      }
+                    });
+                  } catch (e) {}
+                }
+                
+                // Run immediately and on DOM changes
+                function initObserver() {
+                  try {
+                    removeNextLogo();
+                    if (document.body) {
+                      // Watch for dynamically added elements
+                      var observer = new MutationObserver(removeNextLogo);
+                      observer.observe(document.body, { childList: true, subtree: true });
+                    }
+                  } catch (e) {
+                    // Silently fail if body is not available
+                  }
+                }
+                
+                // Initialize when DOM is ready
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', function() {
+                    initObserver();
+                    setTimeout(removeNextLogo, 100);
+                    setTimeout(removeNextLogo, 500);
+                    setTimeout(removeNextLogo, 1000);
+                  });
+                } else {
+                  // DOM is already loaded
+                  initObserver();
+                  setTimeout(removeNextLogo, 100);
+                  setTimeout(removeNextLogo, 500);
+                  setTimeout(removeNextLogo, 1000);
+                }
               })();
             `,
           }}
         />
       </head>
-      <Auth0Provider
-        basePath="/api/auth"
-        cacheLocation="localstorage"
-        skipRedirectCallback={false}
+      <ClerkProvider
+        signInFallbackRedirectUrl="/chat"
+        signUpFallbackRedirectUrl="/chat"
+        signOutFallbackRedirectUrl="/home"
       >
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -65,7 +191,7 @@ export default function RootLayout({
             </UserProvider>
           </ThemeProvider>
         </body>
-      </Auth0Provider>
+      </ClerkProvider>
     </html>
   );
 }

@@ -6,34 +6,140 @@ import { Upload, File, X, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
+const MAX_UPLOADS_PER_WINDOW = 5; // Max 5 uploads per minute
+const RATE_LIMIT_STORAGE_KEY = 'file_upload_timestamps';
+
 export default function FileUpload() {
     const [uploading, setUploading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [isDuplicate, setIsDuplicate] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // Check rate limit
+    const checkRateLimit = (): { allowed: boolean; timeUntilNext: number | null } => {
+        if (typeof window === 'undefined') return { allowed: true, timeUntilNext: null };
+
+        try {
+            const timestampsStr = localStorage.getItem(RATE_LIMIT_STORAGE_KEY);
+            const now = Date.now();
+
+            if (!timestampsStr) {
+                return { allowed: true, timeUntilNext: null };
+            }
+
+            const timestamps: number[] = JSON.parse(timestampsStr);
+            // Filter out timestamps older than the rate limit window
+            const recentTimestamps = timestamps.filter(
+                timestamp => now - timestamp < RATE_LIMIT_WINDOW
+            );
+
+            if (recentTimestamps.length >= MAX_UPLOADS_PER_WINDOW) {
+                const oldestTimestamp = Math.min(...recentTimestamps);
+                const timeUntilNext = RATE_LIMIT_WINDOW - (now - oldestTimestamp);
+                return { allowed: false, timeUntilNext };
+            }
+
+            return { allowed: true, timeUntilNext: null };
+        } catch (error) {
+            console.error('Error checking rate limit:', error);
+            return { allowed: true, timeUntilNext: null };
+        }
+    };
+
+    // Record upload timestamp
+    const recordUpload = () => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            const timestampsStr = localStorage.getItem(RATE_LIMIT_STORAGE_KEY);
+            const timestamps: number[] = timestampsStr ? JSON.parse(timestampsStr) : [];
+            const now = Date.now();
+
+            // Add current timestamp
+            timestamps.push(now);
+
+            // Keep only recent timestamps (within the window)
+            const recentTimestamps = timestamps.filter(
+                timestamp => now - timestamp < RATE_LIMIT_WINDOW * 2 // Keep a bit more for safety
+            );
+
+            localStorage.setItem(RATE_LIMIT_STORAGE_KEY, JSON.stringify(recentTimestamps));
+        } catch (error) {
+            console.error('Error recording upload:', error);
+        }
+    };
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
-            setFile(acceptedFiles[0]);
+            const selectedFile = acceptedFiles[0];
+
+            // Check file size immediately
+            if (selectedFile.size > MAX_FILE_SIZE) {
+                const fileSizeMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
+                setErrorMessage(`File size (${fileSizeMB} MB) exceeds the maximum allowed size of 10 MB. Please upload a file less than 10 MB.`);
+                setFile(null);
+                setUploadSuccess(false);
+                setIsDuplicate(false);
+                // Clear error after 5 seconds
+                setTimeout(() => setErrorMessage(null), 5000);
+                return;
+            }
+
+            setFile(selectedFile);
             setUploadSuccess(false);
             setIsDuplicate(false);
+            setErrorMessage(null);
         }
     }, []);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         maxFiles: 1,
+        maxSize: MAX_FILE_SIZE,
         accept: {
             'text/plain': ['.txt', '.md'],
             'application/pdf': ['.pdf'],
+        },
+        onDropRejected: (fileRejections) => {
+            if (fileRejections.length > 0) {
+                const rejection = fileRejections[0];
+                if (rejection.errors.some(e => e.code === 'file-too-large')) {
+                    const fileSizeMB = rejection.file.size ? (rejection.file.size / (1024 * 1024)).toFixed(2) : 'unknown';
+                    setErrorMessage(`File size (${fileSizeMB} MB) exceeds the maximum allowed size of 10 MB. Please upload a file less than 10 MB.`);
+                    // Clear error after 5 seconds
+                    setTimeout(() => setErrorMessage(null), 5000);
+                } else {
+                    setErrorMessage('File rejected. Please ensure the file is a TXT, MD, or PDF file.');
+                    setTimeout(() => setErrorMessage(null), 5000);
+                }
+            }
         },
     });
 
     const handleUpload = async () => {
         if (!file) return;
 
+        // Check file size again (client-side validation)
+        if (file.size > MAX_FILE_SIZE) {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            setErrorMessage(`File size (${fileSizeMB} MB) exceeds the maximum allowed size of 10 MB. Please choose a smaller file.`);
+            return;
+        }
+
+        // Check rate limit
+        const rateLimitCheck = checkRateLimit();
+        if (!rateLimitCheck.allowed) {
+            const secondsRemaining = Math.ceil((rateLimitCheck.timeUntilNext || 0) / 1000);
+            setErrorMessage(`Upload rate limit exceeded. Please wait ${secondsRemaining} second${secondsRemaining !== 1 ? 's' : ''} before uploading again.`);
+            return;
+        }
+
         setUploading(true);
         setUploadSuccess(false);
+        setErrorMessage(null);
         const formData = new FormData();
         formData.append('file', file);
 
@@ -52,22 +158,28 @@ export default function FileUpload() {
             const result = await response.json();
             setUploadSuccess(true);
             setIsDuplicate(result.isDuplicate || false);
+            // Record successful upload for rate limiting
+            recordUpload();
             // Keep file info visible, don't auto-remove
         } catch (error) {
             console.error('Upload error:', error);
-            let errorMessage = 'Failed to upload file';
-            
+            let errorMsg = 'Failed to upload file';
+
             if (error instanceof Error) {
                 if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    errorMessage = 'Network error: Unable to connect to the server. Please check your connection and try again.';
+                    errorMsg = 'Network error: Unable to connect to the server. Please check your connection and try again.';
                 } else if (error.message.includes('Unauthorized')) {
-                    errorMessage = 'Authentication error: Please log in again.';
+                    errorMsg = 'Authentication error: Please log in again.';
+                } else if (error.message.includes('File size')) {
+                    errorMsg = error.message;
+                } else if (error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+                    errorMsg = error.message;
                 } else {
-                    errorMessage = error.message;
+                    errorMsg = error.message;
                 }
             }
-            
-            alert(errorMessage);
+
+            setErrorMessage(errorMsg);
         } finally {
             setUploading(false);
         }
@@ -78,10 +190,24 @@ export default function FileUpload() {
         setFile(null);
         setUploadSuccess(false);
         setIsDuplicate(false);
+        setErrorMessage(null);
     };
 
     return (
-        <div className="w-full max-w-sm sm:max-w-sm md:max-w-sm mx-auto mb-3 px-2 sm:px-0">
+        <div className="file-upload-component w-full max-w-[288px] mx-auto mb-3">
+            {/* Error message displayed above dropzone when no file selected */}
+            {errorMessage && !file && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="file-upload-error-message mb-3 p-3 bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-800 rounded-lg shadow-sm"
+                >
+                    <p className="file-upload-error-text text-xs sm:text-sm text-red-700 dark:text-red-300 font-semibold text-center">
+                        {errorMessage}
+                    </p>
+                </motion.div>
+            )}
             <AnimatePresence mode="wait">
                 {!file ? (
                     <motion.div
@@ -90,37 +216,38 @@ export default function FileUpload() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
+                        className="file-upload-dropzone-wrapper"
                     >
                         <div
                             {...getRootProps()}
                             className={clsx(
-                                'relative border-2 border-dashed rounded-lg p-2 sm:p-3 text-center cursor-pointer transition-all duration-300 overflow-hidden group',
+                                'file-upload-dropzone relative border-2 border-dashed rounded-lg p-1 sm:p-1.5 text-center cursor-pointer transition-all duration-300 overflow-hidden group',
                                 isDragActive
                                     ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 scale-105 shadow-lg shadow-blue-500/20'
                                     : 'border-blue-300 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-600 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/10 dark:to-gray-900 hover:shadow-lg hover:shadow-blue-500/10'
                             )}
                         >
                             {/* Animated background gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                            
-                            <input {...getInputProps()} />
+                            <div className="file-upload-dropzone-shimmer absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+
+                            <input {...getInputProps()} className="file-upload-input" />
                             <motion.div
                                 animate={isDragActive ? { scale: 1.1, rotate: 5 } : { scale: 1, rotate: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className="relative z-10"
+                                className="file-upload-content relative z-10"
                             >
-                                <div className="relative inline-block mb-1 sm:mb-1.5">
-                                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl" />
-                                    <Upload className="relative mx-auto h-5 w-5 sm:h-6 sm:w-6 text-blue-500 dark:text-blue-400" />
+                                <div className="file-upload-icon-wrapper relative inline-block mb-0.5">
+                                    <div className="file-upload-icon-glow absolute inset-0 bg-blue-500/20 rounded-full blur-lg" />
+                                    <Upload className="file-upload-icon relative mx-auto h-3 w-3 sm:h-4 sm:w-4 text-blue-500 dark:text-blue-400" />
                                 </div>
-                                <p className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5 leading-tight">
+                                <p className="file-upload-instruction text-[8px] sm:text-[9px] font-medium text-gray-700 dark:text-gray-300 mb-0 leading-tight">
                                     {isDragActive ? (
-                                        <span className="text-blue-600 dark:text-blue-400 font-semibold">Drop here...</span>
+                                        <span className="file-upload-drag-active-text text-blue-600 dark:text-blue-400 font-semibold">Drop here...</span>
                                     ) : (
                                         'Drag & drop or click'
                                     )}
                                 </p>
-                                <p className="text-[10px] sm:text-xs text-blue-500 dark:text-blue-400 font-medium">
+                                <p className="file-upload-file-types text-[8px] sm:text-[9px] text-blue-500 dark:text-blue-400 font-medium">
                                     TXT, MD, PDF (max 10MB)
                                 </p>
                             </motion.div>
@@ -133,46 +260,43 @@ export default function FileUpload() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.3 }}
-                        className="relative"
+                        className="file-preview-container relative"
                     >
                         {uploadSuccess ? (
                             // Success state: Show file info on the right
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className={`flex items-center justify-between bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-md ${
-                                    isDuplicate 
-                                        ? 'border-yellow-500/50 dark:border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10'
-                                        : 'border-green-500/50 dark:border-green-500/30 bg-green-50/30 dark:bg-green-950/10'
-                                }`}
+                                className={`file-upload-success-container flex items-center justify-between bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-md ${isDuplicate
+                                    ? 'border-yellow-500/50 dark:border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10'
+                                    : 'border-green-500/50 dark:border-green-500/30 bg-green-50/30 dark:bg-green-950/10'
+                                    }`}
                             >
-                                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                                <div className="file-upload-success-status flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
                                         transition={{ delay: 0.1, type: "spring" }}
-                                        className={`p-1 sm:p-1.5 rounded-lg shadow-sm ${
-                                            isDuplicate
-                                                ? 'bg-gradient-to-br from-yellow-500 to-orange-500'
-                                                : 'bg-gradient-to-br from-green-500 to-emerald-500'
-                                        }`}
+                                        className={`file-upload-success-icon p-1 sm:p-1.5 rounded-lg shadow-sm ${isDuplicate
+                                            ? 'bg-gradient-to-br from-yellow-500 to-orange-500'
+                                            : 'bg-gradient-to-br from-green-500 to-emerald-500'
+                                            }`}
                                     >
                                         <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                                     </motion.div>
-                                    <span className={`text-[10px] sm:text-xs font-medium ${
-                                        isDuplicate
-                                            ? 'text-yellow-600 dark:text-yellow-400'
-                                            : 'text-green-600 dark:text-green-400'
-                                    }`}>
+                                    <span className={`file-upload-success-text text-[10px] sm:text-xs font-medium ${isDuplicate
+                                        ? 'text-yellow-600 dark:text-yellow-400'
+                                        : 'text-green-600 dark:text-green-400'
+                                        }`}>
                                         {isDuplicate ? 'Exists' : 'Done'}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4">
-                                    <div className="text-right">
-                                        <p className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate max-w-[100px] sm:max-w-[150px]">
+                                <div className="file-upload-success-file-info flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4">
+                                    <div className="file-upload-file-details text-right">
+                                        <p className="file-upload-file-name text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate max-w-[100px] sm:max-w-[150px]">
                                             {file.name}
                                         </p>
-                                        <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                        <p className="file-upload-file-size text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium">
                                             {(file.size / 1024).toFixed(1)} KB
                                         </p>
                                     </div>
@@ -180,7 +304,7 @@ export default function FileUpload() {
                                         whileHover={{ scale: 1.1 }}
                                         whileTap={{ scale: 0.9 }}
                                         onClick={removeFile}
-                                        className="p-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                        className="file-upload-remove-button p-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                     >
                                         <X size={16} />
                                     </motion.button>
@@ -189,24 +313,24 @@ export default function FileUpload() {
                         ) : (
                             // Upload state: Show upload button
                             <div className={clsx(
-                                "bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-lg transition-all duration-300",
+                                "file-upload-pending-container bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-lg transition-all duration-300",
                                 "border-blue-200 dark:border-blue-800"
                             )}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1">
+                                <div className="file-upload-pending-header flex items-center justify-between mb-2">
+                                    <div className="file-upload-pending-file-info flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1">
                                         <motion.div
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
                                             transition={{ delay: 0.1, type: "spring" }}
-                                            className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md shadow-blue-500/30"
+                                            className="file-upload-pending-icon p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md shadow-blue-500/30"
                                         >
                                             <File className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                                         </motion.div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate">
+                                        <div className="file-upload-pending-details min-w-0 flex-1">
+                                            <p className="file-upload-pending-file-name text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate">
                                                 {file.name}
                                             </p>
-                                            <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                            <p className="file-upload-pending-file-size text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium">
                                                 {(file.size / 1024).toFixed(1)} KB
                                             </p>
                                         </div>
@@ -215,33 +339,47 @@ export default function FileUpload() {
                                         whileHover={{ scale: 1.1 }}
                                         whileTap={{ scale: 0.9 }}
                                         onClick={removeFile}
-                                        className="p-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                        className="file-upload-pending-remove-button p-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                         disabled={uploading}
                                     >
                                         <X size={16} />
                                     </motion.button>
                                 </div>
-                                
+
                                 <motion.button
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     onClick={handleUpload}
                                     disabled={uploading}
-                                    className="w-full relative overflow-hidden group flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 text-white py-2 px-3 rounded-lg hover:from-blue-500 hover:via-blue-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-xs font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98]"
+                                    className="file-upload-submit-button w-full relative overflow-hidden group flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 text-white py-2 px-3 rounded-lg hover:from-blue-500 hover:via-blue-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-xs font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98]"
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                    <div className="file-upload-submit-button-shimmer absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                                     {uploading ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 animate-spin relative z-10" />
-                                            <span className="relative z-10">Processing...</span>
+                                            <Loader2 className="file-upload-submit-loading-icon h-4 w-4 animate-spin relative z-10" />
+                                            <span className="file-upload-submit-loading-text relative z-10">Processing...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <Sparkles className="h-4 w-4 relative z-10" />
-                                            <span className="relative z-10">Upload to Knowledge Base</span>
+                                            <Sparkles className="file-upload-submit-icon h-4 w-4 relative z-10" />
+                                            <span className="file-upload-submit-text relative z-10">Upload to Knowledge Base</span>
                                         </>
                                     )}
                                 </motion.button>
+
+                                {/* Error message */}
+                                {errorMessage && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="file-upload-pending-error mt-2 p-2.5 bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-800 rounded-lg shadow-sm"
+                                    >
+                                        <p className="file-upload-pending-error-text text-xs text-red-700 dark:text-red-300 font-semibold text-center">
+                                            {errorMessage}
+                                        </p>
+                                    </motion.div>
+                                )}
                             </div>
                         )}
                     </motion.div>
