@@ -5,18 +5,25 @@ import { motion } from 'framer-motion';
 import { useUserContext } from '@/contexts/UserContext';
 import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import ThemeToggle from './ThemeToggle';
+import { useEffect } from 'react';
 import AuthButton from './AuthButton';
 
 export default function LandingPage() {
-    const { user } = useUserContext();
+    const { user, isLoading } = useUserContext();
     const clerk = useClerk();
     const router = useRouter();
+    
+    // Redirect authenticated users to chat immediately
+    useEffect(() => {
+        if (!isLoading && user) {
+            router.replace('/chat');
+        }
+    }, [user, isLoading, router]);
     
     const handleLogin = () => {
         // If user is already authenticated, go to chat
         if (user) {
-            router.push('/chat');
+            router.replace('/chat');
             return;
         }
         
@@ -24,7 +31,7 @@ export default function LandingPage() {
     };
     
     const handleGoToChat = () => {
-        router.push('/chat');
+        router.replace('/chat');
     };
     const features = [
         {
@@ -44,6 +51,11 @@ export default function LandingPage() {
         }
     ];
 
+    // If authenticated, show nothing (will redirect via useEffect)
+    if (!isLoading && user) {
+        return null;
+    }
+
     return (
         <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 overflow-hidden relative transition-colors duration-300">
             {/* Subtle gradient background */}
@@ -55,9 +67,8 @@ export default function LandingPage() {
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
             </div>
 
-            {/* Theme toggle and Auth button */}
+            {/* Auth button */}
             <div className="absolute top-6 right-6 z-20 flex items-center gap-4">
-                <ThemeToggle />
                 <AuthButton />
             </div>
 

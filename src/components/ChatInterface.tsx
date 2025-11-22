@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect, memo } from 'react';
+import { useRouter } from 'next/navigation';
 import FileUpload from './FileUpload';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import AuthButton from './AuthButton';
-import ThemeToggle from './ThemeToggle';
 import ConfirmDialog from './ConfirmDialog';
 import ConversationHistory from './ConversationHistory';
 import { User, Trash2 } from 'lucide-react';
@@ -29,6 +29,8 @@ interface ChatInterfaceProps {
 const STORAGE_KEY = 'chat-messages';
 
 function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
+    const router = useRouter();
+    
     // Load messages from localStorage on mount
     const [messages, setMessages] = useState<Message[]>(() => {
         if (typeof window !== 'undefined') {
@@ -43,6 +45,61 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
         }
         return [];
     });
+    
+    // Additional safeguard: prevent navigation away from chat
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            // Function to check if URL is OAuth-related
+            const isOAuthUrl = (url: string) => {
+                return url.includes('accounts.google.com') || 
+                       url.includes('oauth') || 
+                       url.includes('signin') ||
+                       url.includes('clerk.shared.lcl.dev/v1/oauth_callback');
+            };
+
+            // Function to ensure we're on chat page
+            const ensureOnChat = () => {
+                const currentUrl = window.location.href;
+                const currentPath = window.location.pathname;
+                
+                // If we're on OAuth URL or not on chat, immediately redirect
+                if (isOAuthUrl(currentUrl) || currentPath !== '/chat') {
+                    window.history.replaceState({ page: 'chat' }, '', '/chat');
+                    router.replace('/chat');
+                    return true;
+                }
+                return false;
+            };
+
+            // Check immediately
+            ensureOnChat();
+            
+            // Monitor location changes aggressively
+            const checkLocation = () => {
+                const currentUrl = window.location.href;
+                const currentPath = window.location.pathname;
+                
+                if (isOAuthUrl(currentUrl) || (currentPath !== '/chat' && !currentPath.includes('/chat'))) {
+                    ensureOnChat();
+                }
+            };
+            
+            // Check frequently
+            const locationCheckInterval = setInterval(checkLocation, 100);
+            
+            // Monitor popstate events
+            const handlePopState = () => {
+                checkLocation();
+            };
+            
+            window.addEventListener('popstate', handlePopState);
+            
+            return () => {
+                clearInterval(locationCheckInterval);
+                window.removeEventListener('popstate', handlePopState);
+            };
+        }
+    }, []);
     const [isLoading, setIsLoading] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editContent, setEditContent] = useState<string>('');
@@ -205,7 +262,6 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                             <Trash2 size={16} />
                         </motion.button>
                     )}
-                    <ThemeToggle />
                     <AuthButton />
                 </div>
             </header>
@@ -237,7 +293,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         confirmColor="red"
                     />
 
-                    <main className="chat-main-content flex-1 overflow-y-auto scroll-smooth relative pb-32">
+                    <main className="chat-main-content modern-scrollbar flex-1 overflow-y-auto scroll-smooth relative pb-32">
                         {/* Sticky file upload at top - Centered */}
                         <div className="file-upload-container sticky top-0 z-20 bg-white dark:bg-gray-950 pt-4 pb-2">
                             <div className="file-upload-wrapper flex justify-center px-2 sm:px-4 md:px-6 lg:px-8">
@@ -310,7 +366,10 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                                                     ]
                                                 }
                                             ].map((section, sectionIdx) => (
-                                                <div key={sectionIdx} className="suggested-questions-category space-y-2">
+                                                <div 
+                                                    key={sectionIdx} 
+                                                    className={`suggested-questions-category space-y-2 ${sectionIdx >= 2 ? 'hidden sm:block' : ''}`}
+                                                >
                                                     <h4 className="suggested-questions-category-title text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
                                                         {section.category}
                                                     </h4>
@@ -318,7 +377,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                                                         <button
                                                             key={qIdx}
                                                             onClick={() => handleSend(question)}
-                                                            className="suggested-question-button w-full flex items-start gap-2 rounded-lg border border-gray-200 bg-white p-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:border-blue-300 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-blue-950/20 dark:hover:border-blue-700 transition-all duration-200 group"
+                                                            className={`suggested-question-button w-full flex items-start gap-2 rounded-lg border border-gray-200 bg-white p-3 text-left text-sm text-gray-700 hover:bg-blue-50 hover:border-blue-300 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-blue-950/20 dark:hover:border-blue-700 transition-all duration-200 group ${qIdx >= 1 ? 'hidden sm:flex' : ''}`}
                                                         >
                                                             <span className="text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform">→</span>
                                                             <span className="flex-1">{question}</span>
@@ -359,7 +418,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
 
                     {/* Floating input container - Centered */}
                     <div className={`chat-input-container fixed bottom-0 left-0 ${messages.length > 0 ? 'lg:left-80' : ''} right-0 z-30 pb-4 pt-6`}>
-                        <div className="chat-input-wrapper relative flex justify-center px-2 sm:px-4 md:px-6 lg:px-8">
+                        <div className="chat-input-wrapper relative flex w-full justify-center px-2 sm:px-3 md:px-4 lg:px-6">
                             {/* Gradient backdrop with blur */}
                             <div className="chat-input-backdrop absolute inset-0 -top-6 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 backdrop-blur-md" />
 
@@ -370,7 +429,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                             <div className="chat-input-glow absolute inset-0 -top-6 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 animate-pulse" />
 
                             {/* Input container with floating effect */}
-                            <div className="chat-input-inner-container relative transform transition-transform duration-300 hover:scale-[1.01]">
+                            <div className="chat-input-inner-container relative w-full transform transition-transform duration-300 hover:scale-[1.01]">
                                 <ChatInput
                                     onSend={handleSend}
                                     disabled={isLoading}

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles, LogIn } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
 import AuthButton from '@/components/AuthButton';
 
 export default function LoginPage() {
@@ -17,7 +16,7 @@ export default function LoginPage() {
   // Redirect to chat if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
-      router.push('/chat');
+      router.replace('/chat');
     }
   }, [user, isLoading, router]);
 
@@ -41,7 +40,7 @@ export default function LoginPage() {
   const handleLogin = () => {
     // Don't open sign-in if user is already authenticated
     if (user) {
-      router.push('/chat');
+      router.replace('/chat');
       return;
     }
     
@@ -57,10 +56,6 @@ export default function LoginPage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Theme toggle */}
-      <div className="absolute top-6 right-6 z-20">
-        <ThemeToggle />
-      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

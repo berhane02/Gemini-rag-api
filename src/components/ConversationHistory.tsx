@@ -45,7 +45,7 @@ export default function ConversationHistory({ messages, onMessageClick, selected
             </div>
 
             {/* Vertical Scrollable History List */}
-            <div className="flex-1 overflow-y-auto scroll-smooth">
+            <div className="modern-scrollbar flex-1 overflow-y-auto scroll-smooth">
                 <div className="p-2 space-y-1">
                     {messages.map((message, index) => {
                         const isUser = message.role === 'user';

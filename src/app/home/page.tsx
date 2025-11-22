@@ -12,7 +12,7 @@ export default function HomePageRoute() {
   // Redirect authenticated users to chat
   useEffect(() => {
     if (!isLoading && user) {
-      router.push('/chat');
+      router.replace('/chat');
     }
   }, [user, isLoading, router]);
 
