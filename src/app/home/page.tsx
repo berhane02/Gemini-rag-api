@@ -2,17 +2,40 @@
 
 import { useUserContext } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import LandingPage from '@/components/LandingPage';
 
 export default function HomePageRoute() {
   const { user, isLoading } = useUserContext();
   const router = useRouter();
+  const hasRedirected = useRef(false);
 
   // Redirect authenticated users to chat
   useEffect(() => {
-    if (!isLoading && user) {
-      router.replace('/chat');
+    if (!isLoading && user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      // Use setTimeout to ensure router is ready and avoid race conditions
+      const redirectTimer = setTimeout(() => {
+        try {
+          if (typeof window !== 'undefined' && window.location.pathname !== '/chat') {
+            router.replace('/chat');
+          }
+        } catch (error) {
+          console.error('Error redirecting to chat:', error);
+          // Fallback to push if replace fails
+          try {
+            router.push('/chat');
+          } catch (pushError) {
+            console.error('Error pushing to chat:', pushError);
+            // Last resort: use window.location
+            if (typeof window !== 'undefined') {
+              window.location.href = '/chat';
+            }
+          }
+        }
+      }, 0);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [user, isLoading, router]);
 

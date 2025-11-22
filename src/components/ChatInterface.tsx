@@ -26,16 +26,24 @@ interface ChatInterfaceProps {
     };
 }
 
-const STORAGE_KEY = 'chat-messages';
+const STORAGE_KEY_PREFIX = 'chat-messages_';
+
+// Get user-specific storage key
+function getStorageKey(userId: string) {
+    return `${STORAGE_KEY_PREFIX}${userId}`;
+}
 
 function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
     const router = useRouter();
+    const userId = user?.sub || 'anonymous';
+    const storageKey = getStorageKey(userId);
+    const previousUserIdRef = useRef<string | null>(null);
     
-    // Load messages from localStorage on mount
+    // Load messages from localStorage on mount - user-specific
     const [messages, setMessages] = useState<Message[]>(() => {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && userId !== 'anonymous') {
             try {
-                const saved = localStorage.getItem(STORAGE_KEY);
+                const saved = localStorage.getItem(storageKey);
                 if (saved) {
                     return JSON.parse(saved);
                 }
@@ -45,6 +53,20 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
         }
         return [];
     });
+    
+    // Clear previous user's messages when user changes
+    useEffect(() => {
+        if (previousUserIdRef.current && previousUserIdRef.current !== userId && previousUserIdRef.current !== 'anonymous') {
+            // Clear previous user's messages
+            const previousStorageKey = getStorageKey(previousUserIdRef.current);
+            try {
+                localStorage.removeItem(previousStorageKey);
+            } catch (error) {
+                console.error('Error clearing previous user messages:', error);
+            }
+        }
+        previousUserIdRef.current = userId;
+    }, [userId]);
     
     // Additional safeguard: prevent navigation away from chat
     useEffect(() => {
@@ -109,7 +131,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
     const lastMessageLengthRef = useRef<number>(0);
     const isInitialMount = useRef(true);
 
-    // Save messages to localStorage whenever they change
+    // Save messages to localStorage whenever they change - user-specific
     useEffect(() => {
         // Skip saving on initial mount to avoid overwriting with empty array
         if (isInitialMount.current) {
@@ -117,12 +139,14 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             return;
         }
 
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-        } catch (error) {
-            console.error('Error saving messages to localStorage:', error);
+        if (userId !== 'anonymous') {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(messages));
+            } catch (error) {
+                console.error('Error saving messages to localStorage:', error);
+            }
         }
-    }, [messages]);
+    }, [messages, storageKey, userId]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -145,11 +169,13 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
         setEditingIndex(null);
         setEditContent('');
         setSelectedHistoryIndex(null);
-        // Clear from localStorage
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-        } catch (error) {
-            console.error('Error clearing messages from localStorage:', error);
+        // Clear from localStorage - user-specific
+        if (userId !== 'anonymous') {
+            try {
+                localStorage.removeItem(storageKey);
+            } catch (error) {
+                console.error('Error clearing messages from localStorage:', error);
+            }
         }
     };
 
@@ -320,16 +346,16 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                                         )}
                                     </div>
                                     <h2 className="empty-state-title mb-2 text-2xl font-semibold text-gray-900 dark:text-white">
-                                        How can I help you today?
+                                        👋 How can I help you today?
                                     </h2>
                                     <p className="empty-state-description mb-8 max-w-md text-gray-500 dark:text-gray-400">
-                                        I can help you answer questions about your knowledge base, analyze documents, and more.
+                                        🤖 I can help you answer questions about your knowledge base, analyze documents, and more. ✨
                                     </p>
 
                                     {/* Suggested Questions */}
                                     <div className="suggested-questions-container w-full max-w-6xl mx-auto">
                                         <h3 className="suggested-questions-title text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">
-                                            Try asking questions like:
+                                            💡 Try asking questions like:
                                         </h3>
                                         <div className="suggested-questions-grid grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
                                             {[

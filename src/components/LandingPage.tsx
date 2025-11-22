@@ -102,7 +102,7 @@ export default function LandingPage() {
                         transition={{ delay: 0.3, duration: 0.5 }}
                         className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent leading-tight"
                     >
-                        RAG Chatbot
+                        🤖 RAG Chatbot
                     </motion.h1>
 
                     {/* Subtitle */}
@@ -112,7 +112,7 @@ export default function LandingPage() {
                         transition={{ delay: 0.4, duration: 0.5 }}
                         className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed"
                     >
-                        Your intelligent assistant powered by Google Gemini. Ask questions, get instant answers from your knowledge base.
+                        ✨ Your intelligent assistant powered by Google Gemini. Ask questions, get instant answers from your knowledge base. 🚀
                     </motion.p>
 
                     {/* CTA Button */}
@@ -186,7 +186,7 @@ export default function LandingPage() {
                         className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500"
                     >
                         <Sparkles className="w-4 h-4" />
-                        <span>Powered by Google Gemini AI</span>
+                        <span>⚡ Powered by Google Gemini AI</span>
                     </motion.div>
                 </motion.div>
             </div>

@@ -19,22 +19,58 @@ interface UserContextType {
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
-const CACHE_KEY = 'clerk_user_cache';
-const CACHE_TIMESTAMP_KEY = 'clerk_user_cache_timestamp';
+const CACHE_KEY_PREFIX = 'clerk_user_cache_';
+const CACHE_TIMESTAMP_KEY_PREFIX = 'clerk_user_cache_timestamp_';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CURRENT_USER_KEY = 'current_user_id'; // Track which user is currently logged in
 
 interface CachedUser {
     user: User | null;
     timestamp: number;
 }
 
-// Clear cache helper
-function clearUserCache() {
+// Get user-specific cache keys
+function getUserCacheKeys(userId: string) {
+    return {
+        cacheKey: `${CACHE_KEY_PREFIX}${userId}`,
+        timestampKey: `${CACHE_TIMESTAMP_KEY_PREFIX}${userId}`
+    };
+}
+
+// Clear cache helper for specific user
+function clearUserCache(userId?: string) {
     try {
-        localStorage.removeItem(CACHE_KEY);
-        localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+        if (userId) {
+            // Clear specific user's cache
+            const { cacheKey, timestampKey } = getUserCacheKeys(userId);
+            localStorage.removeItem(cacheKey);
+            localStorage.removeItem(timestampKey);
+        } else {
+            // Clear all user caches (fallback)
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith(CACHE_KEY_PREFIX) || key.startsWith(CACHE_TIMESTAMP_KEY_PREFIX)) {
+                    localStorage.removeItem(key);
+                }
+            });
+        }
     } catch (err) {
         console.error('Error clearing cache:', err);
+    }
+}
+
+// Clear cache from previous user when new user logs in
+function clearPreviousUserCache(currentUserId: string) {
+    try {
+        const previousUserId = localStorage.getItem(CURRENT_USER_KEY);
+        if (previousUserId && previousUserId !== currentUserId) {
+            // Clear previous user's cache
+            clearUserCache(previousUserId);
+        }
+        // Update current user ID
+        localStorage.setItem(CURRENT_USER_KEY, currentUserId);
+    } catch (err) {
+        console.error('Error clearing previous user cache:', err);
     }
 }
 
@@ -71,13 +107,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
                     email: clerkUser.user.primaryEmailAddress?.emailAddress,
                     picture: clerkUser.user.imageUrl,
                 };
+                // Clear previous user's cache if different user
+                clearPreviousUserCache(clerkUser.user.id);
                 setUser(clerkUserData);
+                const { cacheKey, timestampKey } = getUserCacheKeys(clerkUser.user.id);
                 const cacheData: CachedUser = {
                     user: clerkUserData,
                     timestamp: Date.now()
                 };
-                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-                localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                localStorage.setItem(timestampKey, Date.now().toString());
             } else {
                 setUser(null);
             }
@@ -98,14 +137,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
                     email: clerkUser.user.primaryEmailAddress?.emailAddress,
                     picture: clerkUser.user.imageUrl,
                 };
+                // Clear previous user's cache if different user
+                clearPreviousUserCache(clerkUser.user.id);
                 setUser(clerkUserData);
-                // Cache Clerk user
+                // Cache Clerk user with user-specific key
+                const { cacheKey, timestampKey } = getUserCacheKeys(clerkUser.user.id);
                 const cacheData: CachedUser = {
                     user: clerkUserData,
                     timestamp: Date.now()
                 };
-                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-                localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                localStorage.setItem(timestampKey, Date.now().toString());
             } else {
                 setUser(null);
             }
@@ -123,15 +165,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 email: clerkUser.user.primaryEmailAddress?.emailAddress,
                 picture: clerkUser.user.imageUrl,
             };
+            // Clear previous user's cache if different user
+            clearPreviousUserCache(clerkUser.user.id);
             setUser(clerkUserData);
+            const { cacheKey, timestampKey } = getUserCacheKeys(clerkUser.user.id);
             const cacheData: CachedUser = {
                 user: clerkUserData,
                 timestamp: Date.now()
             };
-            localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-            localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            localStorage.setItem(timestampKey, Date.now().toString());
         } else {
-            clearUserCache();
+            const currentUserId = localStorage.getItem(CURRENT_USER_KEY);
+            if (currentUserId) {
+                clearUserCache(currentUserId);
+                localStorage.removeItem(CURRENT_USER_KEY);
+            }
             setUser(null);
         }
         setIsLoading(false);
@@ -153,6 +202,9 @@ export function useUserContext() {
 }
 
 // Export function to clear cache (for logout) - invalidates token
-export function clearAuthCache() {
-    clearUserCache();
+export function clearAuthCache(userId?: string) {
+    clearUserCache(userId);
+    if (userId) {
+        localStorage.removeItem(CURRENT_USER_KEY);
+    }
 }

@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
 
         const buffer = Buffer.from(await file.arrayBuffer());
 
-        // Upload to Gemini File Search
-        const result = await uploadFileToGemini(buffer, file.name, file.type);
+        // Upload to Gemini File Search with user ID
+        const result = await uploadFileToGemini(buffer, file.name, file.type, userId);
 
         // Record successful upload for rate limiting
         recordUpload(userId);

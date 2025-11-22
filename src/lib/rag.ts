@@ -152,32 +152,60 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
     });
 }
 
-export async function queryRAG(query: string) {
+export async function queryRAG(query: string, userId: string) {
     if (isMockMode()) {
         return createMockStream(MOCK_RESPONSE);
     }
 
-    try {
-        // Check if files have been uploaded before querying
-        const { hasUploadedFiles } = await import('./gemini-file-search');
-        if (!hasUploadedFiles()) {
-            const noFilesMessage = `**No Documents Uploaded**
+    if (!userId) {
+        const errorMessage = `**Authentication Error**
 
-I can't answer questions yet because no documents have been uploaded to the knowledge base.
+User ID is required to query documents. Please log in and try again.`;
+        return createMockStream(errorMessage);
+    }
+
+    try {
+        // Try to use Gemini File Search first - user-specific
+        // We'll let Gemini handle the "no files" error rather than checking in-memory Map
+        // (which gets cleared on server restart even if files exist in Gemini)
+        const { queryWithFileSearchStream, getOrCreateFileSearchStore } = await import('./gemini-file-search');
+        
+        try {
+            // Ensure user's store exists (creates if needed)
+            const store = await getOrCreateFileSearchStore(userId);
+            console.log(`[RAG] Using store for user ${userId}: ${store.name}`);
+            
+            // Attempt query - Gemini will return appropriate error if store is empty
+            const response = await queryWithFileSearchStream(query, userId);
+            return iteratorToStream(response);
+        } catch (queryError: any) {
+            console.error(`[RAG] Query error for user ${userId}:`, queryError?.message || queryError);
+            
+            // Check if error is due to empty store or no files
+            const errorMessage = queryError?.message || JSON.stringify(queryError);
+            const errorString = errorMessage.toLowerCase();
+            
+            if (errorString.includes('empty') || 
+                errorString.includes('not found') || 
+                errorString.includes('no files') ||
+                errorString.includes('not accessible') ||
+                errorString.includes('no documents') ||
+                errorString.includes('file search store is not properly initialized')) {
+                const noFilesMessage = `**No Documents Uploaded**
+
+I can't answer questions yet because no documents have been uploaded to your knowledge base.
 
 **To get started:**
 1. Upload a document using the file upload area above
-2. Wait a few seconds for the document to be processed
+2. Wait a few seconds for the document to be processed (up to 30 seconds)
 3. Then ask your question
 
 Once you upload a document, I'll be able to answer questions about its content!`;
-            return createMockStream(noFilesMessage);
+                return createMockStream(noFilesMessage);
+            }
+            // Re-throw other errors to be handled by outer catch
+            throw queryError;
         }
-
-        // Try to use Gemini File Search first
-        const { queryWithFileSearchStream } = await import('./gemini-file-search');
-        const response = await queryWithFileSearchStream(query);
-        return iteratorToStream(response);
     } catch (fileSearchError: any) {
         console.log('File Search error:', fileSearchError?.message || fileSearchError);
 

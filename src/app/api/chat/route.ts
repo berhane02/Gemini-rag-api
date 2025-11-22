@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const { message } = await req.json();
-        const stream = await queryRAG(message);
+        const stream = await queryRAG(message, userId);
 
         return new NextResponse(stream, {
             headers: {
