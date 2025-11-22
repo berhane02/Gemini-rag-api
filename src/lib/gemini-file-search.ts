@@ -3,19 +3,25 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-// Global file search store (in-memory for demo)
-let fileSearchStore: any = null;
+// User-specific file search stores (in-memory for demo)
+// Format: Map<userId, store>
+const userFileStores = new Map<string, any>();
 let ai: GoogleGenAI | null = null;
 
-// Track uploaded files to detect duplicates (in-memory)
-// Format: Map<fileName_size, { fileName, size, uploadedAt, storeName, fileDocumentName }>
+// Track uploaded files per user to detect duplicates (in-memory)
+// Format: Map<userId_fileName_size, { userId, fileName, size, uploadedAt, storeName, fileDocumentName }>
 const uploadedFiles = new Map<string, { 
+    userId: string;
     fileName: string; 
     size: number; 
     uploadedAt: Date;
     storeName?: string;
     fileDocumentName?: string | null;
 }>();
+
+// Lock mechanism to prevent race conditions when creating stores
+// Format: Map<userId, Promise<store>>
+const storeCreationPromises = new Map<string, Promise<any>>();
 
 function isMockMode() {
     return !process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === 'dempy';
@@ -32,74 +38,123 @@ async function getAI() {
     return ai;
 }
 
-async function getOrCreateFileSearchStore() {
-    if (fileSearchStore) {
-        console.log('Using existing file search store:', fileSearchStore.name);
-        return fileSearchStore;
+export async function getOrCreateFileSearchStore(userId: string) {
+    // Check if user already has a store in memory
+    if (userFileStores.has(userId)) {
+        const store = userFileStores.get(userId);
+        console.log(`[FileSearch] Using existing file search store for user ${userId}:`, store.name);
+        return store;
     }
 
-    const client = await getAI();
-    
-    // Try to list existing stores first and reuse one if available
-    try {
-        console.log('Checking for existing file search stores...');
-        // Note: The SDK might not have a list method, so we'll create a new one
-        // But we'll use a consistent display name so they can be identified
-        const storeDisplayName = 'RAG-Chatbot-Store';
+    // Check if store creation is already in progress for this user (prevent race condition)
+    if (storeCreationPromises.has(userId)) {
+        console.log(`[FileSearch] Store creation already in progress for user ${userId}, waiting...`);
+        return await storeCreationPromises.get(userId);
+    }
+
+    // Create a promise for store creation and store it to prevent concurrent creation
+    const creationPromise = (async () => {
+        const client = await getAI();
         
-        // For now, create a new store (in production, you'd want to persist the store name)
-        console.log('Creating new file search store...');
-        fileSearchStore = await client.fileSearchStores.create({
-            config: {
-                displayName: storeDisplayName
+        try {
+            // Double-check after acquiring lock (another request might have created it)
+            if (userFileStores.has(userId)) {
+                const store = userFileStores.get(userId);
+                console.log(`[FileSearch] Store was created by another request for user ${userId}:`, store.name);
+                return store;
             }
-        });
+            
+            console.log(`[FileSearch] Creating new file search store for user: ${userId}`);
+            // Create user-specific store with user ID in display name
+            const storeDisplayName = `RAG-Chatbot-Store-${userId}`;
+            
+            const newStore = await client.fileSearchStores.create({
+                config: {
+                    displayName: storeDisplayName
+                }
+            });
 
-        console.log('Created file search store:', fileSearchStore.name);
-        console.log('⚠️  NOTE: Store is created fresh. If server restarts, uploaded files may not be accessible.');
-        console.log('⚠️  Store name to persist:', fileSearchStore.name);
-        
-        return fileSearchStore;
-    } catch (error) {
-        console.error('Error creating file search store:', error);
-        throw error;
-    }
+            console.log(`[FileSearch] Created file search store for user ${userId}:`, newStore.name);
+            console.log(`[FileSearch] ⚠️  NOTE: Store is created fresh. If server restarts, a new store will be created.`);
+            console.log(`[FileSearch] ⚠️  Store name: ${newStore.name}`);
+            console.log(`[FileSearch] ⚠️  IMPORTANT: Files uploaded before server restart are in a different store and won't be accessible.`);
+            console.log(`[FileSearch] ⚠️  Users need to re-upload files after server restart.`);
+            
+            // Store it in the user-specific map
+            userFileStores.set(userId, newStore);
+            
+            return newStore;
+        } catch (error) {
+            console.error(`[FileSearch] Error creating file search store for user ${userId}:`, error);
+            throw error;
+        } finally {
+            // Remove the promise from the map once creation is complete (success or failure)
+            storeCreationPromises.delete(userId);
+        }
+    })();
+
+    // Store the promise to prevent concurrent creation
+    storeCreationPromises.set(userId, creationPromise);
+    
+    return await creationPromise;
 }
 
-export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, mimeType: string) {
+export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, mimeType: string, userId: string) {
     if (isMockMode()) {
         console.log('Mock mode: File upload simulated');
         return { success: true, fileName, isDuplicate: false };
     }
 
-    // Check if file was already uploaded (by name and size)
-    const fileKey = `${fileName}_${fileBuffer.length}`;
+    if (!userId) {
+        throw new Error('User ID is required for file upload');
+    }
+
+    // Check if file was already uploaded by this user (by userId, name and size)
+    const fileKey = `${userId}_${fileName}_${fileBuffer.length}`;
 
     try {
         const existingFile = uploadedFiles.get(fileKey);
         
-        if (existingFile) {
-            console.log('File already uploaded:', fileName);
+        if (existingFile && existingFile.userId === userId) {
+            console.log(`File already uploaded by user ${userId}:`, fileName);
+            const userStore = userFileStores.get(userId);
             return {
                 success: true,
                 fileName,
-                storeName: fileSearchStore?.name || null,
+                storeName: userStore?.name || null,
                 isDuplicate: true,
                 uploadedAt: existingFile.uploadedAt
             };
         }
 
         const client = await getAI();
-        const store = await getOrCreateFileSearchStore();
+        const store = await getOrCreateFileSearchStore(userId);
+        
+        // Double-check for duplicate after getting store (race condition protection)
+        // Another concurrent request might have uploaded the same file
+        const existingFileAfterStore = uploadedFiles.get(fileKey);
+        if (existingFileAfterStore && existingFileAfterStore.userId === userId && existingFileAfterStore !== existingFile) {
+            console.log(`[FileSearch] File was uploaded by another concurrent request for user ${userId}:`, fileName);
+            const userStore = userFileStores.get(userId);
+            return {
+                success: true,
+                fileName,
+                storeName: userStore?.name || null,
+                isDuplicate: true,
+                uploadedAt: existingFileAfterStore.uploadedAt
+            };
+        }
 
-        console.log('Uploading file to store:', store.name);
+        console.log('[FileSearch] Uploading file to store:', store.name);
         console.log('File details:', { fileName, mimeType, size: fileBuffer.length });
 
-        // Save buffer to temporary file
+        // Save buffer to temporary file with unique name to prevent collisions
+        // Include userId and timestamp to ensure uniqueness across concurrent uploads
         const tempDir = os.tmpdir();
-        const tempPath = path.join(tempDir, fileName);
+        const uniqueFileName = `${userId}_${Date.now()}_${fileName}`;
+        const tempPath = path.join(tempDir, uniqueFileName);
         await fs.writeFile(tempPath, fileBuffer);
-        console.log('Temporary file created:', tempPath);
+        console.log('[FileSearch] Temporary file created:', tempPath);
 
         // Upload and import file into File Search store
         let operation = await client.fileSearchStores.uploadToFileSearchStore({
@@ -168,19 +223,29 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
         // Clean up temp file
         await fs.unlink(tempPath).catch(() => { });
 
-        console.log('File successfully uploaded and indexed to Gemini File Search:', fileName);
-        console.log('Store name:', store.name);
-        console.log('File document name:', fileDocumentName);
-        console.log('IMPORTANT: Store will be lost on server restart. Store name:', store.name);
+        console.log(`[FileSearch] ✅ File successfully uploaded and indexed to Gemini File Search for user ${userId}:`, fileName);
+        console.log(`[FileSearch] Store name:`, store.name);
+        console.log(`[FileSearch] File document name:`, fileDocumentName);
+        console.log(`[FileSearch] File key:`, fileKey);
+        console.log(`[FileSearch] File size:`, fileBuffer.length, 'bytes');
         
-        // Track the uploaded file with store reference
+        // Track the uploaded file with store reference and user ID
         uploadedFiles.set(fileKey, {
+            userId,
             fileName,
             size: fileBuffer.length,
             uploadedAt: new Date(),
             storeName: store.name,
             fileDocumentName: fileDocumentName
         });
+        
+        const userFileCount = Array.from(uploadedFiles.values()).filter(f => f.userId === userId).length;
+        console.log(`[FileSearch] ✓ File tracked successfully. Total files for user ${userId}: ${userFileCount}`);
+        console.log(`[FileSearch] All tracked files for user:`, Array.from(uploadedFiles.values())
+            .filter(f => f.userId === userId)
+            .map(f => `${f.fileName} (store: ${f.storeName})`)
+            .join(', ') || 'none');
+        console.log(`[FileSearch] ⚠️  IMPORTANT: Store name ${store.name} persists on Google's servers but will be lost from memory on server restart.`);
         
         return { 
             success: true, 
@@ -196,16 +261,19 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
         const errorMessage = error?.message || JSON.stringify(error);
         if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
             // File might already exist in the store
+            const userStore = userFileStores.get(userId);
             uploadedFiles.set(fileKey, {
+                userId,
                 fileName,
                 size: fileBuffer.length,
-                uploadedAt: new Date()
+                uploadedAt: new Date(),
+                storeName: userStore?.name || null
             });
             
             return {
                 success: true,
                 fileName,
-                storeName: fileSearchStore?.name || null,
+                storeName: userStore?.name || null,
                 isDuplicate: true,
                 message: 'File already exists in the store'
             };
@@ -215,13 +283,17 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
     }
 }
 
-export async function queryWithFileSearch(query: string) {
+export async function queryWithFileSearch(query: string, userId: string) {
     if (isMockMode()) {
         throw new Error("Cannot query in mock mode");
     }
 
+    if (!userId) {
+        throw new Error('User ID is required for querying');
+    }
+
     const client = await getAI();
-    const store = await getOrCreateFileSearchStore();
+    const store = await getOrCreateFileSearchStore(userId);
 
     // Use officially supported models for File Search (per documentation)
     // Supported models: gemini-2.5-pro, gemini-2.5-flash
@@ -273,13 +345,17 @@ export async function queryWithFileSearch(query: string) {
     throw lastError || new Error("No available models found");
 }
 
-export async function queryWithFileSearchStream(query: string) {
+export async function queryWithFileSearchStream(query: string, userId: string) {
     if (isMockMode()) {
         throw new Error("Cannot query in mock mode");
     }
 
+    if (!userId) {
+        throw new Error('User ID is required for querying');
+    }
+
     const client = await getAI();
-    const store = await getOrCreateFileSearchStore();
+    const store = await getOrCreateFileSearchStore(userId);
 
     console.log('Querying with File Search, store:', store.name);
     console.log('Query:', query);
@@ -290,30 +366,21 @@ export async function queryWithFileSearchStream(query: string) {
         throw new Error('File search store is not properly initialized. Please upload a file first.');
     }
 
-    // Check if we have any tracked files (indicates files were uploaded)
-    const trackedFilesCount = uploadedFiles.size;
-    console.log(`Tracked uploaded files count: ${trackedFilesCount}`);
+    // Check if we have any tracked files for this user (for logging only)
+    // Note: We don't throw errors here because the in-memory Map gets cleared on server restart
+    // Even if files exist in Gemini, we should try to query and let Gemini handle empty stores
+    const userTrackedFiles = Array.from(uploadedFiles.values()).filter(f => f.userId === userId);
+    const trackedFilesCount = userTrackedFiles.length;
+    console.log(`Tracked uploaded files count for user ${userId}: ${trackedFilesCount}`);
     
     if (trackedFilesCount === 0) {
-        console.warn('⚠️  WARNING: No files tracked in memory. Store might be empty or server was restarted.');
+        console.warn(`⚠️  INFO: No files tracked in memory for user ${userId}. This is normal after server restart.`);
         console.warn('⚠️  Store name being used:', store.name);
-        console.warn('⚠️  This means files uploaded before server restart are in a different store.');
-        console.warn('⚠️  Solution: Please re-upload your files after server restart.');
+        console.warn('⚠️  Will attempt query anyway - Gemini will handle if store is empty.');
     } else {
-        const trackedFiles = Array.from(uploadedFiles.values());
-        console.log('Uploaded files in memory:', trackedFiles.map(f => f.fileName).join(', '));
-        
-        // Check if tracked files are in the same store
-        const filesInCurrentStore = trackedFiles.filter(f => f.storeName === store.name);
-        if (filesInCurrentStore.length === 0 && trackedFiles.length > 0) {
-            console.error('❌ ERROR: Tracked files are in a different store!');
-            console.error('Current store:', store.name);
-            console.error('Files were uploaded to:', trackedFiles[0].storeName);
-            console.error('This happens when the server restarts and creates a new store.');
-            throw new Error('Files were uploaded to a different store. Please re-upload your files after the server restart.');
-        }
-        
-        console.log(`✓ Found ${filesInCurrentStore.length} file(s) in current store: ${store.name}`);
+        console.log(`Uploaded files in memory for user ${userId}:`, userTrackedFiles.map(f => f.fileName).join(', '));
+        const filesInCurrentStore = userTrackedFiles.filter(f => f.storeName === store.name);
+        console.log(`✓ Found ${filesInCurrentStore.length} tracked file(s) in current store for user ${userId}: ${store.name}`);
     }
 
     // Use officially supported models for File Search (per documentation)
@@ -378,56 +445,71 @@ export async function queryWithFileSearchStream(query: string) {
     throw lastError || new Error("No available models found");
 }
 
-export function getFileSearchStoreName() {
-    return fileSearchStore?.name || null;
+export function getFileSearchStoreName(userId: string) {
+    const store = userFileStores.get(userId);
+    return store?.name || null;
 }
 
 // Function to list files in the store (for debugging)
-export async function listFilesInStore() {
+export async function listFilesInStore(userId: string) {
     if (isMockMode()) {
         console.log('Mock mode: Cannot list files');
         return [];
     }
 
+    if (!userId) {
+        throw new Error('User ID is required to list files');
+    }
+
     try {
         const client = await getAI();
-        const store = await getOrCreateFileSearchStore();
+        const store = await getOrCreateFileSearchStore(userId);
         
         // Try to get store details - this might not be directly available in the SDK
         // But we can at least verify the store exists
-        console.log('Store name:', store.name);
+        console.log(`Store name for user ${userId}:`, store.name);
         console.log('Store details:', JSON.stringify(store, null, 2));
         
-        return store;
+        // Also return user's uploaded files
+        const userFiles = Array.from(uploadedFiles.values()).filter(f => f.userId === userId);
+        console.log(`User ${userId} uploaded files:`, userFiles.map(f => f.fileName));
+        
+        return { store, userFiles };
     } catch (error) {
-        console.error('Error listing files in store:', error);
+        console.error(`Error listing files in store for user ${userId}:`, error);
         throw error;
     }
 }
 
 // Function to verify store has files before querying
-export async function verifyStoreHasFiles() {
+export async function verifyStoreHasFiles(userId: string) {
     if (isMockMode()) {
         return false;
     }
 
     try {
-        const store = await getOrCreateFileSearchStore();
+        const store = await getOrCreateFileSearchStore(userId);
         // The store object might contain file count or we need to check differently
         // For now, just verify store exists
         return !!store?.name;
     } catch (error) {
-        console.error('Error verifying store:', error);
+        console.error(`Error verifying store for user ${userId}:`, error);
         return false;
     }
 }
 
-// Function to check if any files have been uploaded
-export function hasUploadedFiles(): boolean {
-    return uploadedFiles.size > 0;
+// Function to check if any files have been uploaded by a specific user
+export function hasUploadedFiles(userId?: string): boolean {
+    if (!userId) {
+        return uploadedFiles.size > 0;
+    }
+    return Array.from(uploadedFiles.values()).some(f => f.userId === userId);
 }
 
-// Function to get count of uploaded files
-export function getUploadedFilesCount(): number {
-    return uploadedFiles.size;
+// Function to get count of uploaded files for a specific user
+export function getUploadedFilesCount(userId?: string): number {
+    if (!userId) {
+        return uploadedFiles.size;
+    }
+    return Array.from(uploadedFiles.values()).filter(f => f.userId === userId).length;
 }

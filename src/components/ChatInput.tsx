@@ -12,52 +12,41 @@ interface ChatInputProps {
     onCancelEdit?: () => void;
 }
 
-export default function ChatInput({ onSend, disabled, initialValue = '', editing = false, onCancelEdit }: ChatInputProps) {
+export default function ChatInput({
+    onSend,
+    disabled,
+    initialValue = '',
+    editing = false,
+    onCancelEdit
+}: ChatInputProps) {
     const [input, setInput] = useState(initialValue);
     const [isFocused, setIsFocused] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Update input when initialValue changes (for editing)
     useEffect(() => {
         if (editing && initialValue && input !== initialValue) {
-            // Only update if the value actually changed to prevent unnecessary re-renders
             setInput(initialValue);
-            // Focus the textarea when editing and scroll cursor to end
+
             const timeoutId = setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
                     const length = initialValue.length;
                     textareaRef.current.setSelectionRange(length, length);
-                    // Use requestAnimationFrame to prevent scroll-triggered re-renders
-                    requestAnimationFrame(() => {
-                        if (textareaRef.current) {
-                            textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                    });
                 }
             }, 200);
+
             return () => clearTimeout(timeoutId);
         } else if (!editing && !initialValue && input) {
-            // Only clear input when not editing and no initial value
             setInput('');
         }
-    }, [editing, initialValue]); // Removed input from dependencies to prevent loops
+    }, [editing, initialValue]);
 
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (input.trim() && !disabled) {
             onSend(input);
             setInput('');
-            if (onCancelEdit) {
-                onCancelEdit();
-            }
-        }
-    };
-
-    const handleCancel = () => {
-        setInput('');
-        if (onCancelEdit) {
-            onCancelEdit();
+            onCancelEdit?.();
         }
     };
 
@@ -68,10 +57,13 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
         }
     };
 
+    // Auto-grow vertically with responsive max height
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+            const maxHeight = window.innerWidth >= 768 ? 200 : 150; // Larger max height on desktop
+            const newHeight = Math.min(textareaRef.current.scrollHeight, maxHeight);
+            textareaRef.current.style.height = `${Math.max(newHeight, 40)}px`; // Min 40px
         }
     }, [input]);
 
@@ -79,31 +71,35 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
     const isButtonEnabled = hasInput && !disabled;
 
     return (
-        <form onSubmit={handleSubmit} className="relative w-full max-w-3xl mx-auto p-4">
+        <form onSubmit={handleSubmit} className="relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto px-2 sm:px-3 md:px-4 py-2">
+
             <motion.div
                 initial={false}
                 animate={{
                     scale: isFocused ? 1.02 : 1,
                     boxShadow: isFocused
-                        ? '0 20px 60px -15px rgba(59, 130, 246, 0.4)'
-                        : '0 8px 30px -10px rgba(59, 130, 246, 0.2)',
+                        ? '0 20px 60px -15px rgba(59,130,246,0.4)'
+                        : '0 8px 30px -10px rgba(59,130,246,0.2)'
                 }}
                 transition={{ duration: 0.3 }}
-                className="relative group"
+                className="relative group w-full"
             >
                 <div
                     className={`
-                        relative flex items-end gap-2 rounded-xl border-2 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 dark:from-blue-950/20 dark:via-gray-900 dark:to-blue-950/10 p-3 shadow-xl transition-all duration-300 overflow-hidden
+                        relative flex items-end gap-1.5 sm:gap-2 rounded-xl border-2 w-full
+                        bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50
+                        dark:from-blue-950/20 dark:via-gray-900 dark:to-blue-950/10
+                        p-2 sm:p-2.5 md:p-3 shadow-xl transition-all duration-300 overflow-hidden
                         ${isFocused
                             ? 'border-blue-500 dark:border-blue-500 shadow-blue-500/30 scale-[1.02]'
                             : 'border-blue-300 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-blue-500/15'
                         }
                     `}
                 >
-                    {/* Animated background gradient shimmer - matching FileUpload */}
+                    {/* Hover background shimmer */}
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    
-                    {/* Additional glow effect on focus */}
+
+                    {/* Focus glow */}
                     {isFocused && (
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -112,7 +108,8 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
                             className="absolute inset-0 bg-blue-500/5 rounded-xl"
                         />
                     )}
-                    
+
+                    {/* TEXTAREA: fixed horizontal expansion */}
                     <textarea
                         ref={textareaRef}
                         value={input}
@@ -123,31 +120,49 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
                         placeholder="Message Gemini..."
                         rows={1}
                         disabled={disabled}
-                        className="relative z-10 min-h-[48px] max-h-[200px] w-full resize-none border-0 bg-transparent px-4 py-3.5 text-sm focus:ring-0 focus:outline-none outline-none disabled:opacity-50 scrollbar-hide text-gray-900 dark:text-gray-100 placeholder:text-blue-400/70 dark:placeholder:text-blue-400/60 transition-colors font-medium"
-                        style={{ height: '48px' }}
+                        className="
+                            flex-1 min-w-0 z-10 resize-none border-0 bg-transparent
+                            px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5
+                            text-xs sm:text-sm md:text-base outline-none focus:ring-0
+                            disabled:opacity-50 overflow-hidden
+                            text-gray-900 dark:text-gray-100
+                            placeholder:text-blue-400/70 dark:placeholder:text-blue-400/60
+                            font-medium
+                        "
+                        style={{ minHeight: '40px', height: '40px' }}
                     />
-                    
+
+                    {/* CANCEL EDIT BUTTON */}
                     <AnimatePresence>
                         {editing && (
                             <motion.button
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
-                                onClick={handleCancel}
-                                className="relative mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-300"
-                                title="Cancel edit"
+                                onClick={() => {
+                                    setInput('');
+                                    onCancelEdit?.();
+                                }}
+                                className="
+                                    relative mb-0.5 h-8 w-8 sm:h-9 sm:w-9 shrink-0 flex items-center justify-center
+                                    rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400
+                                    hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-300
+                                "
                             >
-                                <X size={18} />
+                                <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </motion.button>
                         )}
                     </AnimatePresence>
+
+                    {/* SEND BUTTON */}
                     <motion.button
                         type="submit"
                         disabled={!isButtonEnabled}
                         whileHover={isButtonEnabled ? { scale: 1.08 } : {}}
                         whileTap={isButtonEnabled ? { scale: 0.92 } : {}}
                         className={`
-                            relative mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300 overflow-hidden
+                            relative mb-0.5 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center 
+                            rounded-lg transition-all duration-300 overflow-hidden
                             ${isButtonEnabled
                                 ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 cursor-pointer'
                                 : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
@@ -160,21 +175,24 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
                                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
                             </>
                         )}
+
                         <motion.div
                             animate={isButtonEnabled ? { rotate: [0, -10, 10, -10, 0] } : {}}
                             transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
                             className="relative z-10"
                         >
                             {isButtonEnabled ? (
-                                <Sparkles size={20} className="relative z-10" />
+                                <Sparkles className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
                             ) : (
-                                <SendHorizontal size={20} />
+                                <SendHorizontal className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
                             )}
                         </motion.div>
                     </motion.button>
+
                 </div>
             </motion.div>
-            
+
+            {/* EDIT NOTE */}
             <AnimatePresence>
                 {editing && (
                     <motion.div
@@ -189,6 +207,8 @@ export default function ChatInput({ onSend, disabled, initialValue = '', editing
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* DISCLAIMER */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

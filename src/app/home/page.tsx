@@ -1,10 +1,43 @@
 'use client';
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import LandingPage from '@/components/LandingPage';
 
 export default function HomePageRoute() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUserContext();
+  const router = useRouter();
+  const hasRedirected = useRef(false);
+
+  // Redirect authenticated users to chat
+  useEffect(() => {
+    if (!isLoading && user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      // Use setTimeout to ensure router is ready and avoid race conditions
+      const redirectTimer = setTimeout(() => {
+        try {
+          if (typeof window !== 'undefined' && window.location.pathname !== '/chat') {
+            router.replace('/chat');
+          }
+        } catch (error) {
+          console.error('Error redirecting to chat:', error);
+          // Fallback to push if replace fails
+          try {
+            router.push('/chat');
+          } catch (pushError) {
+            console.error('Error pushing to chat:', pushError);
+            // Last resort: use window.location
+            if (typeof window !== 'undefined') {
+              window.location.href = '/chat';
+            }
+          }
+        }
+      }, 0);
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [user, isLoading, router]);
 
   // Show loading state
   if (isLoading) {
@@ -18,7 +51,12 @@ export default function HomePageRoute() {
     );
   }
 
-  // Always show home page (for both authenticated and unauthenticated users)
+  // If authenticated, show nothing (will redirect via useEffect)
+  if (user) {
+    return null;
+  }
+
+  // Show landing page for unauthenticated users
   return <LandingPage />;
 }
 

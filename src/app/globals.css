@@ -23,3 +23,165 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+/* Hide Next.js dev indicator/icon and branding */
+#__next-build-watcher,
+[data-nextjs-toast],
+[data-nextjs-dialog],
+.nextjs-toast-errors-parent,
+[data-nextjs-portal],
+.__next-dev-overlay,
+#__next-dev-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Hide any Next.js branding/icons in bottom left corner */
+body > div[style*="position: fixed"][style*="bottom"][style*="left"],
+body > div[style*="position:fixed"][style*="bottom"][style*="left"],
+div[style*="z-index"][style*="9999"][style*="bottom"][style*="left"] {
+  display: none !important;
+}
+
+/* Hide Next.js logo/branding if rendered as image */
+img[src*="next.svg"],
+img[src*="next.js"],
+img[alt*="Next.js"],
+img[alt*="next"] {
+  display: none !important;
+}
+
+/* Hide Next.js logo SVG - specific targeting */
+svg[width="40"][height="40"][viewBox="0 0 40 40"],
+svg[viewBox="0 0 40 40"]:has(path.paused),
+svg:has(path[stroke*="next_logo_paint"]),
+svg:has(linearGradient[id*="next_logo_paint"]),
+svg:has(mask[id*="next_logo_mask"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide Next.js logo SVG paths and animations */
+path.paused,
+path[class*="paused"],
+path[stroke*="next_logo"],
+path[stroke*="next_logo_paint"],
+path[stroke-dasharray="11.6"],
+path[stroke-dasharray="29.6"],
+path[stroke-dashoffset="11.6"],
+path[stroke-dashoffset="29.6"],
+svg[class*="next"],
+svg[id*="next"],
+svg[data-nextjs],
+path[stroke-dasharray],
+path[stroke-dashoffset] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide any SVG containing Next.js logo paths */
+svg:has(path.paused),
+svg:has(path[class*="paused"]),
+svg:has(path[stroke*="next_logo"]),
+svg:has(path[stroke-dasharray="11.6"]),
+svg:has(path[stroke-dasharray="29.6"]) {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide any parent container with Next.js logo */
+div:has(svg path.paused),
+div:has(svg path[class*="paused"]),
+div:has(svg path[stroke*="next_logo"]),
+div:has(svg[viewBox="0 0 40 40"]),
+div:has(svg[width="40"][height="40"]) {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Hide Next.js logo container - target common positions */
+div[style*="position: fixed"][style*="bottom"][style*="left"] svg,
+div[style*="position:fixed"][style*="bottom"][style*="left"] svg,
+div[style*="position: fixed"][style*="bottom"][style*="left"] > svg[width="40"],
+div[style*="position:fixed"][style*="bottom"][style*="left"] > svg[width="40"] {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide any element containing the Next.js logo path */
+*:has(> path.paused),
+*:has(> path[stroke*="next_logo_paint"]),
+*:has(> svg[viewBox="0 0 40 40"]) {
+  display: none !important;
+}
+
+/* Modern Scrollbar Styles */
+.modern-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+.modern-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.6) 100%);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: all 0.2s ease;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.6) 0%, rgba(59, 130, 246, 0.8) 100%);
+  background-clip: padding-box;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(59, 130, 246, 1) 100%);
+  background-clip: padding-box;
+}
+
+/* Dark mode scrollbar */
+.dark .modern-scrollbar {
+  scrollbar-color: rgba(96, 165, 250, 0.4) transparent;
+}
+
+.dark .modern-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.3) 0%, rgba(96, 165, 250, 0.5) 100%);
+  background-clip: padding-box;
+}
+
+.dark .modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.5) 0%, rgba(96, 165, 250, 0.7) 100%);
+  background-clip: padding-box;
+}
+
+.dark .modern-scrollbar::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.7) 0%, rgba(96, 165, 250, 0.9) 100%);
+  background-clip: padding-box;
+}
+
+/* Smooth scroll behavior */
+.modern-scrollbar {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}

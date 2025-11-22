@@ -1,21 +1,25 @@
 'use client';
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import FileUpload from '@/components/FileUpload';
 import AuthButton from '@/components/AuthButton';
-import ThemeToggle from '@/components/ThemeToggle';
 
 export default function UploadPage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUserContext();
   const router = useRouter();
 
+  // Redirect to chat page if authenticated (keep users in chat unless they logout)
   // Redirect to home page if not authenticated
   // This hook must be called before any conditional returns
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/home');
+    if (!isLoading) {
+      if (user) {
+        router.replace('/chat');
+      } else {
+        router.replace('/home');
+      }
     }
   }, [user, isLoading, router]);
 
@@ -31,19 +35,13 @@ export default function UploadPage() {
     );
   }
 
-  // If not authenticated, show nothing (will redirect via useEffect)
-  if (!user) {
-    return null;
-  }
-
-  // If authenticated, show file upload interface
-  return (
+  // If not loading, show nothing (will redirect via useEffect)
+  return null;
     <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col">
       {/* Header */}
       <header className="border-b bg-white dark:bg-gray-900 dark:border-gray-800 p-4 shadow-sm flex justify-between items-center sticky top-0 z-10">
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Upload Files</h1>
         <div className="flex items-center gap-4">
-          <ThemeToggle />
           <AuthButton />
         </div>
       </header>

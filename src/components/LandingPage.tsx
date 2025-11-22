@@ -2,21 +2,36 @@
 
 import { ArrowRight, Sparkles, Zap, Shield, Brain, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUserContext } from '@/contexts/UserContext';
+import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import ThemeToggle from './ThemeToggle';
+import { useEffect } from 'react';
 import AuthButton from './AuthButton';
 
 export default function LandingPage() {
-    const { user } = useUser();
+    const { user, isLoading } = useUserContext();
+    const clerk = useClerk();
     const router = useRouter();
     
+    // Redirect authenticated users to chat immediately
+    useEffect(() => {
+        if (!isLoading && user) {
+            router.replace('/chat');
+        }
+    }, [user, isLoading, router]);
+    
     const handleLogin = () => {
-        router.push('/login');
+        // If user is already authenticated, go to chat
+        if (user) {
+            router.replace('/chat');
+            return;
+        }
+        
+        clerk.openSignIn({ redirectUrl: '/chat' });
     };
     
     const handleGoToChat = () => {
-        router.push('/chat');
+        router.replace('/chat');
     };
     const features = [
         {
@@ -36,6 +51,11 @@ export default function LandingPage() {
         }
     ];
 
+    // If authenticated, show nothing (will redirect via useEffect)
+    if (!isLoading && user) {
+        return null;
+    }
+
     return (
         <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 overflow-hidden relative transition-colors duration-300">
             {/* Subtle gradient background */}
@@ -47,9 +67,8 @@ export default function LandingPage() {
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
             </div>
 
-            {/* Theme toggle and Auth button */}
+            {/* Auth button */}
             <div className="absolute top-6 right-6 z-20 flex items-center gap-4">
-                <ThemeToggle />
                 <AuthButton />
             </div>
 
@@ -83,7 +102,7 @@ export default function LandingPage() {
                         transition={{ delay: 0.3, duration: 0.5 }}
                         className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent leading-tight"
                     >
-                        RAG Chatbot
+                        🤖 RAG Chatbot
                     </motion.h1>
 
                     {/* Subtitle */}
@@ -93,7 +112,7 @@ export default function LandingPage() {
                         transition={{ delay: 0.4, duration: 0.5 }}
                         className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed"
                     >
-                        Your intelligent assistant powered by Google Gemini. Ask questions, get instant answers from your knowledge base.
+                        ✨ Your intelligent assistant powered by Google Gemini. Ask questions, get instant answers from your knowledge base. 🚀
                     </motion.p>
 
                     {/* CTA Button */}
@@ -167,7 +186,7 @@ export default function LandingPage() {
                         className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500"
                     >
                         <Sparkles className="w-4 h-4" />
-                        <span>Powered by Google Gemini AI</span>
+                        <span>⚡ Powered by Google Gemini AI</span>
                     </motion.div>
                 </motion.div>
             </div>
