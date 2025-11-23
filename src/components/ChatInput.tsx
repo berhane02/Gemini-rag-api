@@ -98,7 +98,7 @@ export default function ChatInput({
                 >
                     {/* Hover background shimmer */}
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-
+                    
                     {/* Focus glow */}
                     {isFocused && (
                         <motion.div
@@ -108,7 +108,7 @@ export default function ChatInput({
                             className="absolute inset-0 bg-blue-500/5 rounded-xl"
                         />
                     )}
-
+                    
                     {/* TEXTAREA: fixed horizontal expansion */}
                     <textarea
                         ref={textareaRef}
@@ -131,7 +131,7 @@ export default function ChatInput({
                         "
                         style={{ minHeight: '40px', height: '40px' }}
                     />
-
+                    
                     {/* CANCEL EDIT BUTTON */}
                     <AnimatePresence>
                         {editing && (
@@ -191,7 +191,7 @@ export default function ChatInput({
 
                 </div>
             </motion.div>
-
+            
             {/* EDIT NOTE */}
             <AnimatePresence>
                 {editing && (

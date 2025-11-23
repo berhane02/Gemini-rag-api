@@ -8,7 +8,7 @@ import ChatInput from './ChatInput';
 import AuthButton from './AuthButton';
 import ConfirmDialog from './ConfirmDialog';
 import ConversationHistory from './ConversationHistory';
-import { User, Trash2 } from 'lucide-react';
+import { User, Trash2, Home, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Message {
@@ -33,14 +33,22 @@ function getStorageKey(userId: string) {
     return `${STORAGE_KEY_PREFIX}${userId}`;
 }
 
+type TabType = 'home' | 'previous';
+
 function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
     const router = useRouter();
     const userId = user?.sub || 'anonymous';
     const storageKey = getStorageKey(userId);
     const previousUserIdRef = useRef<string | null>(null);
     
-    // Load messages from localStorage on mount - user-specific
-    const [messages, setMessages] = useState<Message[]>(() => {
+    // Tab state - default to 'home' when user logs in
+    const [activeTab, setActiveTab] = useState<TabType>('home');
+    
+    // Separate message states for home and previous chats
+    const [homeMessages, setHomeMessages] = useState<Message[]>([]);
+    
+    // Load previous messages from localStorage on mount - user-specific
+    const [previousMessages, setPreviousMessages] = useState<Message[]>(() => {
         if (typeof window !== 'undefined' && userId !== 'anonymous') {
             try {
                 const saved = localStorage.getItem(storageKey);
@@ -54,6 +62,10 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
         return [];
     });
     
+    // Current messages based on active tab
+    const messages = activeTab === 'home' ? homeMessages : previousMessages;
+    const setMessages = activeTab === 'home' ? setHomeMessages : setPreviousMessages;
+    
     // Clear previous user's messages when user changes
     useEffect(() => {
         if (previousUserIdRef.current && previousUserIdRef.current !== userId && previousUserIdRef.current !== 'anonymous') {
@@ -66,7 +78,50 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             }
         }
         previousUserIdRef.current = userId;
-    }, [userId]);
+        
+        // Reset to home tab when user changes
+        setActiveTab('home');
+        setHomeMessages([]);
+        
+        // Load previous messages for new user
+        if (userId !== 'anonymous') {
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    setPreviousMessages(JSON.parse(saved));
+                } else {
+                    setPreviousMessages([]);
+                }
+            } catch (error) {
+                console.error('Error loading messages from localStorage:', error);
+                setPreviousMessages([]);
+            }
+        }
+    }, [userId, storageKey]);
+    
+    // Handle tab switching
+    const handleTabSwitch = (tab: TabType) => {
+        if (tab === activeTab) return;
+        
+        // When switching from home to previous, merge home messages into previous if they exist
+        if (activeTab === 'home' && homeMessages.length > 0 && userId !== 'anonymous') {
+            try {
+                // Merge home messages with previous messages (append home to previous)
+                const merged = [...previousMessages, ...homeMessages];
+                localStorage.setItem(storageKey, JSON.stringify(merged));
+                setPreviousMessages(merged);
+                // Clear home messages after merging
+                setHomeMessages([]);
+            } catch (error) {
+                console.error('Error saving messages to localStorage:', error);
+            }
+        }
+        
+        setActiveTab(tab);
+        setEditingIndex(null);
+        setEditContent('');
+        setSelectedHistoryIndex(null);
+    };
     
     // Additional safeguard: prevent navigation away from chat
     useEffect(() => {
@@ -131,7 +186,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
     const lastMessageLengthRef = useRef<number>(0);
     const isInitialMount = useRef(true);
 
-    // Save messages to localStorage whenever they change - user-specific
+    // Save previous messages to localStorage whenever they change - user-specific
     useEffect(() => {
         // Skip saving on initial mount to avoid overwriting with empty array
         if (isInitialMount.current) {
@@ -139,14 +194,32 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             return;
         }
 
-        if (userId !== 'anonymous') {
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(messages));
-            } catch (error) {
-                console.error('Error saving messages to localStorage:', error);
+        // Save previous messages when they change and we're in previous tab
+        if (activeTab === 'previous' && userId !== 'anonymous' && previousMessages.length > 0) {
+        try {
+                localStorage.setItem(storageKey, JSON.stringify(previousMessages));
+        } catch (error) {
+            console.error('Error saving messages to localStorage:', error);
             }
         }
-    }, [messages, storageKey, userId]);
+    }, [previousMessages, storageKey, userId, activeTab]);
+    
+    // When switching to previous tab, ensure we have the latest from localStorage
+    useEffect(() => {
+        if (activeTab === 'previous' && userId !== 'anonymous') {
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (JSON.stringify(parsed) !== JSON.stringify(previousMessages)) {
+                        setPreviousMessages(parsed);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading messages from localStorage:', error);
+            }
+        }
+    }, [activeTab, userId, storageKey]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -165,18 +238,22 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
     };
 
     const confirmClearChat = () => {
-        setMessages([]);
+        if (activeTab === 'home') {
+            setHomeMessages([]);
+        } else {
+            setPreviousMessages([]);
+            // Clear from localStorage - user-specific
+            if (userId !== 'anonymous') {
+                try {
+                    localStorage.removeItem(storageKey);
+                } catch (error) {
+                    console.error('Error clearing messages from localStorage:', error);
+                }
+            }
+        }
         setEditingIndex(null);
         setEditContent('');
         setSelectedHistoryIndex(null);
-        // Clear from localStorage - user-specific
-        if (userId !== 'anonymous') {
-            try {
-                localStorage.removeItem(storageKey);
-            } catch (error) {
-                console.error('Error clearing messages from localStorage:', error);
-            }
-        }
     };
 
     const handleEdit = (index: number, content: string) => {
@@ -204,15 +281,19 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
     };
 
     const handleSend = async (content: string) => {
+        // Determine which message state to use based on active tab
+        const currentMessages = activeTab === 'home' ? homeMessages : previousMessages;
+        const setCurrentMessages = activeTab === 'home' ? setHomeMessages : setPreviousMessages;
+        
         // If editing, remove the old message and all subsequent messages (including AI response)
         if (editingIndex !== null) {
-            setMessages((prev) => prev.slice(0, editingIndex));
+            setCurrentMessages((prev) => prev.slice(0, editingIndex));
             setEditingIndex(null);
             setEditContent('');
         }
 
         const userMessage: Message = { role: 'user', content };
-        setMessages((prev) => [...prev, userMessage]);
+        setCurrentMessages((prev) => [...prev, userMessage]);
         setIsLoading(true);
 
         try {
@@ -232,7 +313,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             if (!reader) throw new Error('No reader available');
 
             let aiMessage: Message = { role: 'model', content: '' };
-            setMessages((prev) => [...prev, aiMessage]);
+            setCurrentMessages((prev) => [...prev, aiMessage]);
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -241,11 +322,25 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                 const text = new TextDecoder().decode(value);
                 aiMessage = { ...aiMessage, content: aiMessage.content + text };
 
-                setMessages((prev) => {
+                setCurrentMessages((prev) => {
                     const newMessages = [...prev];
                     newMessages[newMessages.length - 1] = aiMessage;
                     return newMessages;
                 });
+            }
+            
+            // Auto-save previous messages to localStorage after sending
+            if (activeTab === 'previous' && userId !== 'anonymous') {
+                try {
+                    // Get the latest messages after the update
+                    setTimeout(() => {
+                        if (previousMessages.length > 0) {
+                            localStorage.setItem(storageKey, JSON.stringify(previousMessages));
+                        }
+                    }, 100);
+                } catch (error) {
+                    console.error('Error auto-saving messages:', error);
+                }
             }
         } catch (error) {
             console.error('Error sending message:', error);
@@ -261,7 +356,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                 }
             }
 
-            setMessages((prev) => [
+            setCurrentMessages((prev) => [
                 ...prev,
                 { role: 'model', content: errorMessage },
             ]);
@@ -272,31 +367,204 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
 
     return (
         <div className="chat-interface-container flex h-screen flex-col bg-white dark:bg-gray-950">
-            {/* Navbar - Smaller */}
-            <header className="chat-header border-b bg-white dark:bg-gray-900 dark:border-gray-800 px-4 py-2 shadow-sm flex justify-between items-center sticky top-0 z-20">
-                <h1 className="chat-header-title text-lg font-semibold text-gray-800 dark:text-white">RAG Chatbot</h1>
-                <div className="chat-header-actions flex items-center gap-2">
-                    {messages.length > 0 && (
-                        <motion.button
-                            onClick={handleClearChat}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="clear-chat-button p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                            title="Clear chat"
-                            aria-label="Clear chat"
+            {/* Navbar - Responsive */}
+            <header className="chat-header border-b bg-white dark:bg-gray-900 dark:border-gray-800 shadow-sm sticky top-0 z-20">
+                {/* Mobile Layout */}
+                <div className="px-2 py-1 sm:hidden flex items-center gap-2">
+                    {/* Title - Smaller on mobile */}
+                    <h1 className="text-xs font-semibold text-gray-800 dark:text-white whitespace-nowrap">RAG</h1>
+                    
+                    {/* File Upload - Icon only on mobile */}
+                    <div className="flex items-center">
+                        <FileUpload compact={true} />
+                    </div>
+                    
+                    {/* Tabs - Icons only on mobile */}
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => handleTabSwitch('home')}
+                            className={`p-1 rounded-md transition-all duration-200 relative ${
+                                activeTab === 'home'
+                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md'
+                                    : 'bg-gray-100 dark:bg-gray-800'
+                            }`}
+                            title="Home Chat"
                         >
-                            <Trash2 size={16} />
+                            <Home 
+                                size={14} 
+                                className={activeTab === 'home' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}
+                                strokeWidth={2.5}
+                            />
+                        </button>
+                        <button
+                            onClick={() => handleTabSwitch('previous')}
+                            className={`p-1 rounded-md transition-all duration-200 relative ${
+                                activeTab === 'previous'
+                                    ? 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-md'
+                                    : 'bg-gray-100 dark:bg-gray-800'
+                            }`}
+                            title="Previous Chat"
+                        >
+                            <History 
+                                size={14} 
+                                className={activeTab === 'previous' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}
+                                strokeWidth={2.5}
+                            />
+                            {previousMessages.length > 0 && (
+                                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-white text-[7px] flex items-center justify-center font-bold">
+                                    {previousMessages.length > 9 ? '9+' : previousMessages.length}
+                                </span>
+                            )}
+                        </button>
+                        {messages.length > 0 && (
+                            <motion.button
+                                onClick={handleClearChat}
+                                whileTap={{ scale: 0.95 }}
+                                className="p-1 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-md"
+                                title="Clear chat"
+                            >
+                                <Trash2 size={14} className="text-white" strokeWidth={2.5} />
+                            </motion.button>
+                        )}
+                    </div>
+                    
+                    {/* Auth Button - Right end */}
+                    <div className="flex items-center ml-auto">
+                        <AuthButton />
+                    </div>
+                </div>
+
+                {/* Tablet/Desktop Layout */}
+                <div className="hidden sm:flex px-2 md:px-3 lg:px-4 py-1 md:py-1.5 items-center gap-2 md:gap-3 lg:gap-4 relative">
+                    {/* RAG Chatbot Title */}
+                    <h1 className="chat-header-title text-xs md:text-sm lg:text-base font-semibold text-gray-800 dark:text-white whitespace-nowrap">RAG Chatbot</h1>
+                    
+                    {/* Divider */}
+                    <div className="h-4 md:h-5 w-px bg-gray-300 dark:bg-gray-700" />
+                    
+                    {/* Tabs */}
+                    <div className="flex items-center gap-1.5 md:gap-2">
+                        <button
+                            onClick={() => handleTabSwitch('home')}
+                            className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group ${
+                                activeTab === 'home'
+                                    ? 'text-blue-700 dark:text-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            }`}
+                        >
+                            {/* Gradient background effect */}
+                            {activeTab === 'home' && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 animate-pulse" />
+                            )}
+                            <div className={`relative flex items-center justify-center w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-md transition-all duration-200 ${
+                                activeTab === 'home'
+                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30'
+                                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-blue-100 group-hover:to-indigo-100 dark:group-hover:from-blue-900/30 dark:group-hover:to-indigo-900/30'
+                            }`}>
+                                <Home 
+                                    size={10}
+                                    className={`md:w-[12px] md:h-[12px] lg:w-[14px] lg:h-[14px] transition-all duration-200 ${
+                                        activeTab === 'home'
+                                            ? 'text-white'
+                                            : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                                    }`}
+                                    strokeWidth={activeTab === 'home' ? 2.5 : 2}
+                                />
+                            </div>
+                            <span className="relative font-semibold hidden md:inline text-xs">Home Chat</span>
+                            <span className="relative font-semibold md:hidden text-xs">Home</span>
+                        </button>
+                        <button
+                            onClick={() => handleTabSwitch('previous')}
+                            className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group ${
+                                activeTab === 'previous'
+                                    ? 'text-purple-700 dark:text-purple-300 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/40 shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            }`}
+                        >
+                            {/* Gradient background effect */}
+                            {activeTab === 'previous' && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-rose-500/10 animate-pulse" />
+                            )}
+                            <div className={`relative flex items-center justify-center w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-md transition-all duration-200 ${
+                                activeTab === 'previous'
+                                    ? 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-md shadow-purple-500/30'
+                                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-purple-100 group-hover:to-pink-100 dark:group-hover:from-purple-900/30 dark:group-hover:to-pink-900/30'
+                            }`}>
+                                <History 
+                                    size={10}
+                                    className={`md:w-[12px] md:h-[12px] lg:w-[14px] lg:h-[14px] transition-all duration-200 ${
+                                        activeTab === 'previous'
+                                            ? 'text-white'
+                                            : 'text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400'
+                                    }`}
+                                    strokeWidth={activeTab === 'previous' ? 2.5 : 2}
+                                />
+                            </div>
+                            <span className="relative font-semibold hidden md:inline text-xs">Previous Chat</span>
+                            <span className="relative font-semibold md:hidden text-xs">Previous</span>
+                            {previousMessages.length > 0 && (
+                                <span className={`relative ml-0.5 h-3 w-3 md:h-3.5 md:w-3.5 rounded-full flex items-center justify-center text-[7px] md:text-[8px] font-bold transition-all duration-200 ${
+                                    activeTab === 'previous'
+                                        ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-md shadow-purple-500/40'
+                                        : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm'
+                                }`}>
+                                    {previousMessages.length > 99 ? '99+' : previousMessages.length}
+                                </span>
+                            )}
+                        </button>
+                        
+                        {/* Clear Chat Button - Next to Previous Chat */}
+                        {messages.length > 0 && (
+                            <motion.button
+                                onClick={handleClearChat}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="clear-chat-button group relative px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 rounded-md transition-all duration-200 ml-1.5 overflow-hidden"
+                                title="Clear chat"
+                                aria-label="Clear chat"
+                            >
+                                {/* Animated gradient background */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-rose-600/20 to-pink-600/20 group-hover:from-red-600/30 group-hover:via-rose-600/30 group-hover:to-pink-600/30 transition-all duration-300" />
+                                
+                                {/* Content */}
+                                <div className="relative flex items-center justify-center gap-1 md:gap-1.5">
+                                    <div className="flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/30 group-hover:shadow-xl group-hover:shadow-red-500/50 transition-all duration-200">
+                                        <Trash2 
+                                            size={9}
+                                            className={`md:w-[11px] md:h-[11px] text-white transition-all duration-200 group-hover:scale-110`}
+                                            strokeWidth={2.5}
+                                        />
+                                    </div>
+                                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 group-hover:text-white transition-colors duration-200 hidden lg:inline">
+                                        Clear
+                                    </span>
+                                </div>
+                                
+                                {/* Shine effect on hover */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                         </motion.button>
                     )}
-                    <AuthButton />
+                    </div>
+                    
+                    {/* File Upload - Centered in navbar */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
+                        <FileUpload compact={true} showText={true} />
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="chat-header-actions flex items-center gap-1.5 md:gap-2 ml-auto">
+                        <AuthButton />
+                    </div>
                 </div>
             </header>
 
             {/* Content Area - History on Left, Chat on Right */}
             <div className="chat-content-area flex-1 flex overflow-hidden">
-                {/* Chat History - Left Sidebar Below Navbar */}
+                {/* Chat History - Left Sidebar Below Navbar - Responsive */}
                 {messages.length > 0 && (
-                    <div className="chat-history-sidebar hidden lg:flex w-80 shrink-0 flex-col border-r border-gray-200 dark:border-gray-800 h-full">
+                    <div className="chat-history-sidebar hidden xl:flex w-64 xl:w-80 shrink-0 flex-col border-r border-gray-200 dark:border-gray-800 h-full">
                         <ConversationHistory
                             messages={messages}
                             onMessageClick={handleHistoryClick}
@@ -320,44 +588,37 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                     />
 
                     <main className="chat-main-content modern-scrollbar flex-1 overflow-y-auto scroll-smooth relative pb-32">
-                        {/* Sticky file upload at top - Centered */}
-                        <div className="file-upload-container sticky top-0 z-20 bg-white dark:bg-gray-950 pt-4 pb-2">
-                            <div className="file-upload-wrapper flex justify-center px-2 sm:px-4 md:px-6 lg:px-8">
-                                <FileUpload />
-                            </div>
-                        </div>
-
                         {/* Scrollable content area - Centered */}
-                        <div className="chat-messages-wrapper px-2 sm:px-4 md:px-6 lg:px-8 pb-8">
+                        <div className="chat-messages-wrapper px-4 sm:px-6 md:px-8 lg:px-12 pb-12">
                             {messages.length === 0 ? (
-                                <div className="empty-state-container flex h-[60vh] flex-col items-center justify-center text-center">
-                                    <div className="empty-state-avatar mb-6 rounded-full bg-gray-50 p-4 dark:bg-gray-800/50">
+                                <div className="empty-state-container flex min-h-[60vh] flex-col items-center justify-center text-center pt-16 sm:pt-20">
+                                    <div className="empty-state-avatar mb-8 rounded-full bg-gray-50 p-5 dark:bg-gray-800/50">
                                         {user?.picture ? (
                                             <img
                                                 src={user.picture}
                                                 alt={user.name || 'User'}
-                                                className="h-12 w-12 rounded-full object-cover object-center"
+                                                className="h-14 w-14 rounded-full object-cover object-center"
                                                 style={{ objectPosition: 'center center' }}
                                             />
                                         ) : (
-                                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                                <User className="h-6 w-6 text-white flex-shrink-0" />
+                                            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                                <User className="h-7 w-7 text-white flex-shrink-0" />
                                             </div>
                                         )}
                                     </div>
-                                    <h2 className="empty-state-title mb-2 text-2xl font-semibold text-gray-900 dark:text-white">
+                                    <h2 className="empty-state-title mb-3 text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">
                                         👋 How can I help you today?
                                     </h2>
-                                    <p className="empty-state-description mb-8 max-w-md text-gray-500 dark:text-gray-400">
+                                    <p className="empty-state-description mb-10 max-w-md text-gray-500 dark:text-gray-400">
                                         🤖 I can help you answer questions about your knowledge base, analyze documents, and more. ✨
                                     </p>
 
                                     {/* Suggested Questions */}
                                     <div className="suggested-questions-container w-full max-w-6xl mx-auto">
-                                        <h3 className="suggested-questions-title text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">
+                                        <h3 className="suggested-questions-title text-sm font-semibold text-gray-700 dark:text-gray-300 mb-6 text-center">
                                             💡 Try asking questions like:
                                         </h3>
-                                        <div className="suggested-questions-grid grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <div className="suggested-questions-grid grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
                                             {[
                                                 {
                                                     category: "Document Analysis",
@@ -415,7 +676,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="messages-list space-y-6 pb-4 max-w-[2560px] mx-auto">
+                                <div className="messages-list space-y-8 pb-6 max-w-[2560px] mx-auto">
                                     {messages.map((msg, i) => (
                                         <div
                                             key={i}
@@ -442,9 +703,9 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         </div>
                     </main>
 
-                    {/* Floating input container - Centered */}
-                    <div className={`chat-input-container fixed bottom-0 left-0 ${messages.length > 0 ? 'lg:left-80' : ''} right-0 z-30 pb-4 pt-6`}>
-                        <div className="chat-input-wrapper relative flex w-full justify-center px-2 sm:px-3 md:px-4 lg:px-6">
+                    {/* Floating input container - Centered - Responsive */}
+                    <div className={`chat-input-container fixed bottom-0 left-0 ${messages.length > 0 ? 'xl:left-64 2xl:left-80' : ''} right-0 z-30 pb-4 sm:pb-6 pt-6 sm:pt-8`}>
+                        <div className="chat-input-wrapper relative flex w-full justify-center px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
                             {/* Gradient backdrop with blur */}
                             <div className="chat-input-backdrop absolute inset-0 -top-6 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 backdrop-blur-md" />
 

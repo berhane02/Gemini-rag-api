@@ -24,7 +24,7 @@ export default function HomePageRoute() {
           console.error('Error redirecting to chat:', error);
           // Fallback to push if replace fails
           try {
-            router.push('/chat');
+      router.push('/chat');
           } catch (pushError) {
             console.error('Error pushing to chat:', pushError);
             // Last resort: use window.location

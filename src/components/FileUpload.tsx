@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, File, X, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -11,7 +11,12 @@ const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
 const MAX_UPLOADS_PER_WINDOW = 5; // Max 5 uploads per minute
 const RATE_LIMIT_STORAGE_KEY = 'file_upload_timestamps';
 
-export default function FileUpload() {
+interface FileUploadProps {
+    compact?: boolean; // Icon-only mode for mobile navbar
+    showText?: boolean; // Show text label (e.g., "Upload Doc")
+}
+
+export default function FileUpload({ compact = false, showText = false }: FileUploadProps = {}) {
     const [uploading, setUploading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -192,6 +197,62 @@ export default function FileUpload() {
         setIsDuplicate(false);
         setErrorMessage(null);
     };
+
+    // Auto-upload in compact mode when file is selected
+    useEffect(() => {
+        if (compact && file && !uploading && !uploadSuccess && !errorMessage) {
+            handleUpload();
+        }
+    }, [compact, file]);
+
+    // Compact icon-only mode for mobile navbar or navbar with text
+    if (compact) {
+        return (
+            <div className="file-upload-compact relative">
+                <div
+                    {...getRootProps()}
+                    className={clsx(
+                        'relative rounded-md cursor-pointer transition-all duration-200 overflow-hidden group flex items-center gap-1.5',
+                        showText 
+                            ? 'px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5'
+                            : 'p-1.5',
+                        uploading
+                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                            : uploadSuccess
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                            : isDragActive
+                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600 scale-105 shadow-lg shadow-blue-500/30'
+                            : 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 hover:from-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/50 dark:hover:to-indigo-800/50'
+                    )}
+                    title={uploading ? 'Uploading...' : uploadSuccess ? 'Upload successful' : 'Upload file'}
+                >
+                    <input {...getInputProps()} className="file-upload-input" />
+                    {uploading ? (
+                        <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-white animate-spin" />
+                    ) : uploadSuccess ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-white" />
+                    ) : (
+                        <Upload className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors" />
+                    )}
+                    {showText && (
+                        <span className={clsx(
+                            "text-xs md:text-sm font-bold transition-colors whitespace-nowrap",
+                            uploading || uploadSuccess || isDragActive
+                                ? "text-white"
+                                : "text-gray-800 dark:text-gray-200"
+                        )}>
+                            Upload Doc
+                        </span>
+                    )}
+                </div>
+                {errorMessage && (
+                    <div className="absolute top-full left-0 mt-1 px-2 py-1 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded text-[10px] text-red-700 dark:text-red-300 whitespace-nowrap z-50 shadow-lg">
+                        {errorMessage}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="file-upload-component w-full max-w-[288px] mx-auto mb-3">
