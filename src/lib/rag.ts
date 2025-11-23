@@ -6,32 +6,19 @@ import { Document } from "@langchain/core/documents";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs/promises";
 import path from "path";
+import { logger } from "./logger";
+import { getGoogleApiKey } from "./env";
 
 let vectorStore: HNSWLib | null = null;
 
-const MOCK_RESPONSE = `**Mock Mode Active**
-
-I am simulating a response because the API key is set to "dempy" or is missing.
-
-*   **RAG**: I pretended to search the knowledge base.
-*   **Generation**: This text is streamed to simulate the Gemini API.
-
-You can upload files and they will be "processed" (simulated), but I won't actually read them or update the vector store in this mode.
-
-To use the real Gemini API, please set a valid \`GOOGLE_API_KEY\` in your \`.env.local\` file.`;
-
-function isMockMode() {
-    return !process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === 'dempy';
-}
-
-function createMockStream(text: string) {
+function createErrorStream(message: string) {
     const encoder = new TextEncoder();
     return new ReadableStream({
         async start(controller) {
-            const chunks = text.split(/(?=[ \n])/); // Split by words/spaces/newlines
+            const chunks = message.split(/(?=[ \n])/);
             for (const chunk of chunks) {
                 controller.enqueue(encoder.encode(chunk));
-                await new Promise(resolve => setTimeout(resolve, 20)); // Simulate typing speed
+                await new Promise(resolve => setTimeout(resolve, 20));
             }
             controller.close();
         }
@@ -39,21 +26,24 @@ function createMockStream(text: string) {
 }
 
 export async function getVectorStore() {
-    if (isMockMode()) {
-        throw new Error("Attempted to access vector store in mock mode");
-    }
     if (vectorStore) return vectorStore;
 
-    const text = await fs.readFile(path.join(process.cwd(), 'knowledge_base.txt'), 'utf-8');
-    const docs = text.split('\n').filter(line => line.trim()).map(line => new Document({ pageContent: line }));
+    try {
+        const text = await fs.readFile(path.join(process.cwd(), 'knowledge_base.txt'), 'utf-8');
+        const docs = text.split('\n').filter(line => line.trim()).map(line => new Document({ pageContent: line }));
 
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-        apiKey: process.env.GOOGLE_API_KEY,
-        taskType: TaskType.RETRIEVAL_DOCUMENT,
-    });
+        const embeddings = new GoogleGenerativeAIEmbeddings({
+            apiKey: getGoogleApiKey(),
+            taskType: TaskType.RETRIEVAL_DOCUMENT,
+        });
 
-    vectorStore = await HNSWLib.fromDocuments(docs, embeddings);
-    return vectorStore;
+        vectorStore = await HNSWLib.fromDocuments(docs, embeddings);
+        logger.info('Vector store initialized successfully');
+        return vectorStore;
+    } catch (error) {
+        logger.error('Failed to initialize vector store', error);
+        throw error;
+    }
 }
 
 function iteratorToStream(iterator: AsyncIterable<any>) {
@@ -75,7 +65,7 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
                             hasReceivedData = true;
                         } catch (e) {
                             // If text() fails, try other methods
-                            console.debug('chunk.text() failed, trying alternative extraction');
+                            logger.debug('chunk.text() failed, trying alternative extraction');
                         }
                     } else if (chunk?.text && typeof chunk.text === 'string') {
                         text = chunk.text;
@@ -119,7 +109,7 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
                         } catch (enqueueError: any) {
                             // If controller is closed, stop processing
                             if (enqueueError?.code === 'ERR_INVALID_STATE' || enqueueError?.message?.includes('closed')) {
-                                console.warn('Stream controller was closed, stopping iteration');
+                                logger.warn('Stream controller was closed, stopping iteration');
                                 return;
                             }
                             throw enqueueError;
@@ -128,16 +118,16 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
                 }
                 
                 if (!hasReceivedData) {
-                    console.warn('No text data received from stream');
+                    logger.warn('No text data received from stream');
                 }
             } catch (error) {
-                console.error('Error in iteratorToStream:', error);
+                logger.error('Error in iteratorToStream', error);
                 // Only error if controller is still open
                 try {
                     controller.error(error);
                 } catch (errorError) {
                     // Controller might already be closed, ignore
-                    console.warn('Could not send error to closed controller');
+                    logger.warn('Could not send error to closed controller');
                 }
                 return;
             }
@@ -146,22 +136,19 @@ function iteratorToStream(iterator: AsyncIterable<any>) {
                 controller.close();
             } catch (closeError) {
                 // Controller might already be closed, ignore
-                console.warn('Controller was already closed');
+                logger.warn('Controller was already closed');
             }
         }
     });
 }
 
 export async function queryRAG(query: string, userId: string) {
-    if (isMockMode()) {
-        return createMockStream(MOCK_RESPONSE);
-    }
-
     if (!userId) {
         const errorMessage = `**Authentication Error**
 
 User ID is required to query documents. Please log in and try again.`;
-        return createMockStream(errorMessage);
+        logger.warn('Query attempted without userId');
+        return createErrorStream(errorMessage);
     }
 
     try {
@@ -173,13 +160,13 @@ User ID is required to query documents. Please log in and try again.`;
         try {
             // Ensure user's store exists (creates if needed)
             const store = await getOrCreateFileSearchStore(userId);
-            console.log(`[RAG] Using store for user ${userId}: ${store.name}`);
+            logger.info('Using file search store for query', { userId, storeName: store.name });
             
             // Attempt query - Gemini will return appropriate error if store is empty
             const response = await queryWithFileSearchStream(query, userId);
             return iteratorToStream(response);
         } catch (queryError: any) {
-            console.error(`[RAG] Query error for user ${userId}:`, queryError?.message || queryError);
+            logger.error('Query error for user', queryError, { userId });
             
             // Check if error is due to empty store or no files
             const errorMessage = queryError?.message || JSON.stringify(queryError);
@@ -201,13 +188,13 @@ I can't answer questions yet because no documents have been uploaded to your kno
 3. Then ask your question
 
 Once you upload a document, I'll be able to answer questions about its content!`;
-                return createMockStream(noFilesMessage);
+                return createErrorStream(noFilesMessage);
             }
             // Re-throw other errors to be handled by outer catch
             throw queryError;
         }
     } catch (fileSearchError: any) {
-        console.log('File Search error:', fileSearchError?.message || fileSearchError);
+        logger.error('File Search error', fileSearchError, { userId });
 
         // If rate limited, return helpful message
         if (fileSearchError?.status === 429) {
@@ -223,7 +210,7 @@ You've hit the API quota limit. This usually happens when:
 3. The system will automatically retry in a moment
 
 Please try your question again in about a minute.`;
-            return createMockStream(errorMessage);
+            return createErrorStream(errorMessage);
         }
 
         // For model not found or other API errors
@@ -233,7 +220,7 @@ Please try your question again in about a minute.`;
 The AI model is temporarily unavailable. This has been logged and will be fixed.
 
 Please try again in a moment.`;
-            return createMockStream(errorMessage);
+            return createErrorStream(errorMessage);
         }
 
         // For invalid argument errors (400)
@@ -243,7 +230,7 @@ Please try again in a moment.`;
 There was an issue with the request format. This has been logged.
 
 Please try again in a moment.`;
-            return createMockStream(errorMessage);
+            return createErrorStream(errorMessage);
         }
 
         // Check if error indicates files aren't accessible
@@ -265,7 +252,7 @@ It seems the uploaded files are not accessible. This can happen if:
 3. Check the server logs for detailed error information
 
 Please try uploading your file again and wait a moment before querying.`;
-            return createMockStream(fileAccessErrorMessage);
+            return createErrorStream(fileAccessErrorMessage);
         }
 
         // Generic error fallback
@@ -276,22 +263,24 @@ I'm having trouble processing your request right now.
 **Error details:** ${errorMessage}
 
 Please try again in a moment.`;
-        return createMockStream(genericErrorMessage);
+        return createErrorStream(genericErrorMessage);
     }
 }
+
 export async function addDocument(text: string) {
-    if (isMockMode()) {
-        console.log("Mock mode: Document processing simulated.");
-        return 1; // Simulate 1 chunk added
+    try {
+        const vectorStore = await getVectorStore();
+        const splitter = new RecursiveCharacterTextSplitter({
+            chunkSize: 1000,
+            chunkOverlap: 200,
+        });
+
+        const docs = await splitter.createDocuments([text]);
+        await vectorStore.addDocuments(docs);
+        logger.info('Document added to vector store', { chunks: docs.length });
+        return docs.length;
+    } catch (error) {
+        logger.error('Failed to add document to vector store', error);
+        throw error;
     }
-
-    const vectorStore = await getVectorStore();
-    const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-    });
-
-    const docs = await splitter.createDocuments([text]);
-    await vectorStore.addDocuments(docs);
-    return docs.length;
 }

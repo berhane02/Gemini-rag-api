@@ -1,12 +1,35 @@
 'use client';
 
-import { ArrowRight, Sparkles, Zap, Shield, Brain, MessageSquare } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, Shield, Brain, MessageSquare, Cpu, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useUserContext } from '@/contexts/UserContext';
 import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import AuthButton from './AuthButton';
+
+// Typewriter component for generating text effect - Optimized
+function TypewriterText({ text, speed = 100 }: { text: string; speed?: number }) {
+    const [displayedText, setDisplayedText] = useState('');
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    useEffect(() => {
+        if (currentIndex < text.length) {
+            const timeout = setTimeout(() => {
+                setDisplayedText(prev => prev + text[currentIndex]);
+                setCurrentIndex(prev => prev + 1);
+            }, speed);
+
+            return () => clearTimeout(timeout);
+        }
+    }, [currentIndex, text, speed]);
+
+    return (
+        <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent">
+            {displayedText}
+        </span>
+    );
+}
 
 export default function LandingPage() {
     const { user, isLoading } = useUserContext();
@@ -20,7 +43,7 @@ export default function LandingPage() {
         }
     }, [user, isLoading, router]);
     
-    const handleLogin = () => {
+    const handleLogin = useCallback(() => {
         // If user is already authenticated, go to chat
         if (user) {
             router.replace('/chat');
@@ -28,12 +51,14 @@ export default function LandingPage() {
         }
         
         clerk.openSignIn({ redirectUrl: '/chat' });
-    };
+    }, [user, router, clerk]);
     
-    const handleGoToChat = () => {
+    const handleGoToChat = useCallback(() => {
         router.replace('/chat');
-    };
-    const features = [
+    }, [router]);
+    
+    // Memoize features to prevent unnecessary re-renders
+    const features = useMemo(() => [
         {
             icon: Brain,
             title: 'Intelligent RAG',
@@ -49,7 +74,7 @@ export default function LandingPage() {
             title: 'Secure & Private',
             description: 'Your data is protected with enterprise-grade security'
         }
-    ];
+    ], []);
 
     // If authenticated, show nothing (will redirect via useEffect)
     if (!isLoading && user) {
@@ -65,6 +90,61 @@ export default function LandingPage() {
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
+            </div>
+
+            {/* Stars animation - Optimized with CSS for better performance */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                {/* Reduced star count and using CSS animations */}
+                {[...Array(20)].map((_, i) => {
+                    const size = Math.random() * 2 + 1;
+                    const left = Math.random() * 100;
+                    const top = Math.random() * 100;
+                    const delay = Math.random() * 3;
+                    const duration = 3 + Math.random() * 2;
+                    
+                    return (
+                        <div
+                            key={i}
+                            className="absolute rounded-full bg-white dark:bg-white star-twinkle"
+                            style={{
+                                width: `${size}px`,
+                                height: `${size}px`,
+                                left: `${left}%`,
+                                top: `${top}%`,
+                                boxShadow: `0 0 ${size * 2}px rgba(255, 255, 255, 0.8)`,
+                                animation: `starTwinkle ${duration}s ease-in-out infinite`,
+                                animationDelay: `${delay}s`,
+                                willChange: 'opacity, transform',
+                            }}
+                        />
+                    );
+                })}
+                
+                {/* Larger twinkling stars - reduced count */}
+                {[...Array(8)].map((_, i) => {
+                    const size = Math.random() * 3 + 2;
+                    const left = Math.random() * 100;
+                    const top = Math.random() * 100;
+                    const delay = Math.random() * 4;
+                    const duration = 4 + Math.random() * 2;
+                    
+                    return (
+                        <div
+                            key={`large-${i}`}
+                            className="absolute rounded-full bg-white dark:bg-white star-twinkle-large"
+                            style={{
+                                width: `${size}px`,
+                                height: `${size}px`,
+                                left: `${left}%`,
+                                top: `${top}%`,
+                                boxShadow: `0 0 ${size * 3}px rgba(255, 255, 255, 1), 0 0 ${size * 6}px rgba(147, 197, 253, 0.5)`,
+                                animation: `starTwinkleLarge ${duration}s ease-in-out infinite`,
+                                animationDelay: `${delay}s`,
+                                willChange: 'opacity, transform',
+                            }}
+                        />
+                    );
+                })}
             </div>
 
             {/* Auth button */}
@@ -84,25 +164,134 @@ export default function LandingPage() {
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.2, duration: 0.5 }}
+                        transition={{ delay: 0.2, duration: 0.8 }}
                         className="flex justify-center mb-8"
                     >
                         <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur-xl opacity-50" />
-                            <div className="relative h-20 w-20 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                                <Sparkles className="h-10 w-10 text-white" />
+                            {/* Background text generation effect - Matrix-style rain - Optimized with CSS */}
+                            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+                                {/* Reduced columns and using CSS animations for better performance */}
+                                {[...Array(8)].map((_, i) => {
+                                    const chars = '01AIαβγδεζηθικλμνξοπρστυφχψωRAGGPTLLM';
+                                    const randomChars = Array.from({ length: 6 }, () => 
+                                        chars[Math.floor(Math.random() * chars.length)]
+                                    ).join('');
+                                    const delay = Math.random() * 2;
+                                    const duration = 3 + Math.random() * 1.5;
+                                    
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="absolute text-[10px] md:text-xs font-mono text-green-400/30 dark:text-green-300/20 whitespace-nowrap matrix-rain"
+                                            style={{
+                                                left: `${8 + (i % 4) * 25}%`,
+                                                fontFamily: 'monospace',
+                                                textShadow: '0 0 5px rgba(34, 197, 94, 0.5)',
+                                                animation: `matrixFall ${duration}s linear infinite`,
+                                                animationDelay: `${delay}s`,
+                                                willChange: 'transform, opacity',
+                                            }}
+                                        >
+                                            {randomChars}
+                                        </div>
+                                    );
+                                })}
+                                
+                                {/* Reduced falling characters */}
+                                {[...Array(5)].map((_, i) => {
+                                    const singleChars = '01AIαβγδεζηθικλμνξοπρστυφχψω';
+                                    const char = singleChars[Math.floor(Math.random() * singleChars.length)];
+                                    const delay = Math.random() * 1.5;
+                                    const duration = 2 + Math.random() * 1;
+                                    
+                                    return (
+                                        <span
+                                            key={`char-${i}`}
+                                            className="absolute text-xs font-mono text-green-500/40 dark:text-green-400/30 matrix-char"
+                                            style={{
+                                                left: `${12 + (i % 3) * 28}%`,
+                                                textShadow: '0 0 3px rgba(34, 197, 94, 0.6)',
+                                                animation: `matrixFallChar ${duration}s linear infinite`,
+                                                animationDelay: `${delay}s`,
+                                                willChange: 'transform',
+                                            }}
+                                        >
+                                            {char}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                            {/* Glow rings - static */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur-2xl opacity-60" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-3xl blur-3xl opacity-45" />
+                            
+                            {/* Main icon container - static */}
+                            <div className="relative h-24 w-24 md:h-28 md:w-28 z-10">
+                                {/* Glass morphism effect - static */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/90 via-purple-600/90 to-pink-500/90 rounded-3xl backdrop-blur-xl border-2 border-white/30 dark:border-white/20 shadow-2xl" />
+                                
+                                {/* Inner glow - static */}
+                                <div className="absolute inset-2 bg-gradient-to-br from-blue-400/50 to-purple-500/50 rounded-2xl blur-md" />
+                                
+                                {/* Icon - static */}
+                                <div className="relative h-full w-full flex items-center justify-center">
+                                    {/* Main sparkles icon */}
+                                    <Sparkles className="h-12 w-12 md:h-14 md:w-14 text-white drop-shadow-lg" strokeWidth={2.5} />
+                                </div>
+                                
+                                {/* CPU/Activity indicator - showing processing */}
+                                <div className="absolute -bottom-2 -right-2 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full p-1.5 shadow-lg z-20">
+                                    <Activity className="w-3 h-3 text-white" />
+                                </div>
                             </div>
                         </div>
                     </motion.div>
 
-                    {/* Main heading */}
+                    {/* Main heading with typing effect */}
                     <motion.h1
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                        className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent leading-tight"
+                        transition={{ delay: 0.3, duration: 0.8 }}
+                        className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
                     >
-                        🤖 RAG Chatbot
+                        <span className="relative inline-block">
+                            {/* Typing effect text */}
+                            <TypewriterText 
+                                text="🤖 RAG Chatbot"
+                                speed={100}
+                            />
+                            
+                            {/* Animated gradient background - Optimized with CSS */}
+                            <span
+                                className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 via-pink-600 to-blue-600 bg-[length:200%_100%] bg-clip-text text-transparent pointer-events-none gradient-shift"
+                                style={{ 
+                                    backgroundSize: '200% 100%',
+                                    willChange: 'background-position',
+                                }}
+                            />
+                            
+                            {/* Animated underline - slower */}
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: '100%' }}
+                                transition={{ delay: 1.5, duration: 1.5, ease: "easeOut" }}
+                                className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
+                            />
+                            
+                            
+                        </span>
+                        
+                        {/* Animated emoji - Optimized with CSS */}
+                        <span
+                            className="inline-block ml-2 emoji-float"
+                            style={{
+                                willChange: 'transform',
+                            }}
+                        >
+                            🤖
+                        </span>
+                        
+                        {/* Floating particles around text - slower */}
                     </motion.h1>
 
                     {/* Subtitle */}
@@ -152,7 +341,7 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6, duration: 0.5 }}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+                        className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8"
                     >
                         {features.map((feature, index) => {
                             const Icon = feature.icon;
@@ -162,15 +351,15 @@ export default function LandingPage() {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
-                                    className="p-6 rounded-2xl bg-gray-50/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all duration-200"
+                                    className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-gray-50/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all duration-200"
                                 >
-                                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 mb-4 mx-auto">
-                                        <Icon className="w-6 h-6 text-white" />
+                                    <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 mb-3 sm:mb-4 mx-auto">
+                                        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1.5 sm:mb-2">
                                         {feature.title}
                                     </h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                                         {feature.description}
                                     </p>
                                 </motion.div>

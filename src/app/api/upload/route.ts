@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { uploadFileToGemini } from '@/lib/gemini-file-search';
+import { validateFile, sanitizeFilename } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 // Rate limiting: Store upload timestamps per user (in-memory, resets on server restart)
 // In production, consider using Redis or a database for persistent rate limiting
@@ -42,61 +44,117 @@ function recordUpload(userId: string) {
 }
 
 export async function POST(req: NextRequest) {
-    // Check authentication with Clerk
-    const { userId } = await auth();
-    if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized. Please log in to upload files.' }, { status: 401 });
-    }
-
-    // Check rate limit
-    const rateLimitCheck = checkRateLimit(userId);
-    if (!rateLimitCheck.allowed) {
-        const secondsRemaining = Math.ceil((rateLimitCheck.timeUntilNext || 0) / 1000);
-        return NextResponse.json({ 
-            error: `Upload rate limit exceeded. Please wait ${secondsRemaining} second${secondsRemaining !== 1 ? 's' : ''} before uploading again.` 
-        }, { status: 429 });
-    }
-
     try {
-        const formData = await req.formData();
-        const file = formData.get('file') as File;
+        // Check authentication with Clerk
+        const { userId } = await auth();
+        if (!userId) {
+            logger.warn('Unauthorized upload request attempt');
+            return NextResponse.json(
+                { error: 'Unauthorized. Please log in to upload files.' },
+                { status: 401 }
+            );
+        }
+
+        // Check rate limit
+        const rateLimitCheck = checkRateLimit(userId);
+        if (!rateLimitCheck.allowed) {
+            const secondsRemaining = Math.ceil((rateLimitCheck.timeUntilNext || 0) / 1000);
+            logger.warn('Rate limit exceeded', { userId, secondsRemaining });
+            return NextResponse.json(
+                {
+                    error: `Upload rate limit exceeded. Please wait ${secondsRemaining} second${secondsRemaining !== 1 ? 's' : ''} before uploading again.`,
+                },
+                { status: 429 }
+            );
+        }
+
+        // Parse form data
+        let formData: FormData;
+        try {
+            formData = await req.formData();
+        } catch (error) {
+            logger.error('Failed to parse form data', error, { userId });
+            return NextResponse.json(
+                { error: 'Invalid request format' },
+                { status: 400 }
+            );
+        }
+
+        const file = formData.get('file') as File | null;
 
         if (!file) {
-            return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+            logger.warn('No file in upload request', { userId });
+            return NextResponse.json(
+                { error: 'No file uploaded' },
+                { status: 400 }
+            );
         }
 
-        // Check file size (10MB limit)
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-        if (file.size > MAX_FILE_SIZE) {
-            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            return NextResponse.json({ 
-                error: `File size (${fileSizeMB} MB) exceeds the maximum allowed size of 10 MB. Please choose a smaller file.` 
-            }, { status: 400 });
+        // Validate file
+        const validation = validateFile(file);
+        if (!validation.valid) {
+            logger.warn('Invalid file in upload request', {
+                userId,
+                fileName: file.name,
+                fileSize: file.size,
+                error: validation.error,
+            });
+            return NextResponse.json(
+                { error: validation.error || 'Invalid file' },
+                { status: 400 }
+            );
         }
 
-        const buffer = Buffer.from(await file.arrayBuffer());
+        // Sanitize filename
+        const sanitizedFilename = sanitizeFilename(file.name);
+
+        // Convert file to buffer
+        let buffer: Buffer;
+        try {
+            buffer = Buffer.from(await file.arrayBuffer());
+        } catch (error) {
+            logger.error('Failed to read file buffer', error, { userId, fileName: sanitizedFilename });
+            return NextResponse.json(
+                { error: 'Failed to process file' },
+                { status: 500 }
+            );
+        }
 
         // Upload to Gemini File Search with user ID
-        const result = await uploadFileToGemini(buffer, file.name, file.type, userId);
+        logger.info('Uploading file to Gemini', {
+            userId,
+            fileName: sanitizedFilename,
+            fileSize: buffer.length,
+            mimeType: file.type,
+        });
+
+        const result = await uploadFileToGemini(buffer, sanitizedFilename, file.type, userId);
 
         // Record successful upload for rate limiting
         recordUpload(userId);
 
-        return NextResponse.json({
-            success: true,
-            message: result.isDuplicate 
-                ? `File "${file.name}" already exists in the knowledge base`
-                : `Successfully uploaded ${file.name} to Gemini File Search`,
-            fileName: result.fileName,
-            storeName: result.storeName,
-            isDuplicate: result.isDuplicate || false
+        logger.info('File uploaded successfully', {
+            userId,
+            fileName: sanitizedFilename,
+            isDuplicate: result.isDuplicate,
         });
 
-    } catch (error) {
-        console.error('Upload error:', error);
         return NextResponse.json({
-            error: 'Internal Server Error',
-            details: error instanceof Error ? error.message : 'Unknown error'
-        }, { status: 500 });
+            success: true,
+            message: result.isDuplicate
+                ? `File "${sanitizedFilename}" already exists in the knowledge base`
+                : `Successfully uploaded ${sanitizedFilename} to Gemini File Search`,
+            fileName: result.fileName,
+            storeName: result.storeName,
+            isDuplicate: result.isDuplicate || false,
+        });
+    } catch (error) {
+        logger.error('Upload error', error);
+        return NextResponse.json(
+            {
+                error: 'Internal Server Error. Please try again later.',
+            },
+            { status: 500 }
+        );
     }
 }
