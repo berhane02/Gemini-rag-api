@@ -64,12 +64,12 @@ export default function ConfirmDialog({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50"
+                        className="confirm-dialog-backdrop fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50"
                         onClick={onClose}
                     />
 
                     {/* Dialog */}
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                    <div className="confirm-dialog-container fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 20, rotateX: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
@@ -81,12 +81,12 @@ export default function ConfirmDialog({
                                 stiffness: 300,
                                 damping: 30
                             }}
-                            className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6 pointer-events-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95"
+                            className="confirm-dialog-content relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6 pointer-events-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Animated border glow */}
                             <motion.div
-                                className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500/20 via-red-600/30 to-red-500/20 opacity-0"
+                                className="confirm-dialog-border-glow absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500/20 via-red-600/30 to-red-500/20 opacity-0"
                                 animate={{ opacity: [0, 0.5, 0] }}
                                 transition={{ duration: 2, repeat: Infinity }}
                             />
@@ -95,7 +95,7 @@ export default function ConfirmDialog({
                                 onClick={onClose}
                                 whileHover={{ scale: 1.1, rotate: 90 }}
                                 whileTap={{ scale: 0.9 }}
-                                className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                className="confirm-dialog-close-button absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                 aria-label="Close"
                             >
                                 <X size={20} />
@@ -103,18 +103,18 @@ export default function ConfirmDialog({
 
                             {/* Icon */}
                             <motion.div 
-                                className="flex justify-center mb-4"
+                                className="confirm-dialog-icon-container flex justify-center mb-4"
                                 initial={{ scale: 0, rotate: -180 }}
                                 animate={{ scale: 1, rotate: 0 }}
                                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
                             >
-                                <div className="relative">
+                                <div className="confirm-dialog-icon-wrapper relative">
                                     <motion.div 
-                                        className="absolute inset-0 bg-red-500/20 rounded-full blur-xl"
+                                        className="confirm-dialog-icon-glow absolute inset-0 bg-red-500/20 rounded-full blur-xl"
                                         animate={{ scale: [1, 1.2, 1] }}
                                         transition={{ duration: 2, repeat: Infinity }}
                                     />
-                                    <div className="relative bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/30 p-4 rounded-full border-2 border-red-200 dark:border-red-800">
+                                    <div className="confirm-dialog-icon-circle relative bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/30 p-4 rounded-full border-2 border-red-200 dark:border-red-800">
                                         <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
                                     </div>
                                 </div>
@@ -122,7 +122,7 @@ export default function ConfirmDialog({
 
                             {/* Title */}
                             <motion.h3 
-                                className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2"
+                                className="confirm-dialog-title text-xl font-bold text-gray-900 dark:text-white text-center mb-2"
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 }}
@@ -131,15 +131,15 @@ export default function ConfirmDialog({
                             </motion.h3>
 
                             {/* Message */}
-                            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg p-4 mb-6">
-                                <p className="text-gray-700 dark:text-gray-300 text-center text-sm leading-relaxed">
+                            <div className="confirm-dialog-message-container bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg p-4 mb-6">
+                                <p className="confirm-dialog-message-text text-gray-700 dark:text-gray-300 text-center text-sm leading-relaxed">
                                     {message}
                                 </p>
                             </div>
 
                             {/* Actions */}
                             <motion.div 
-                                className="flex gap-3"
+                                className="confirm-dialog-actions flex gap-3"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 }}
@@ -148,7 +148,7 @@ export default function ConfirmDialog({
                                     onClick={onClose}
                                     whileHover={{ scale: 1.02, x: -2 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                                    className="confirm-dialog-cancel-button flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                                 >
                                     {cancelText}
                                 </motion.button>
@@ -159,10 +159,10 @@ export default function ConfirmDialog({
                                     }}
                                     whileHover={{ scale: 1.02, x: 2 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className={`group relative flex-1 px-4 py-2.5 text-sm font-semibold text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl overflow-hidden ${confirmColorClasses[confirmColor]}`}
+                                    className={`confirm-dialog-confirm-button group relative flex-1 px-4 py-2.5 text-sm font-semibold text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl overflow-hidden ${confirmColorClasses[confirmColor]}`}
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                                    <span className="relative z-10 flex items-center justify-center gap-2">
+                                    <div className="confirm-dialog-confirm-button-shimmer absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                    <span className="confirm-dialog-confirm-button-text relative z-10 flex items-center justify-center gap-2">
                                         {confirmText}
                                         <AlertTriangle className="w-4 h-4 opacity-80" />
                                     </span>

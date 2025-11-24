@@ -42,12 +42,12 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 px-4">
-          <div className="max-w-md w-full text-center">
-            <div className="mb-6">
-              <div className="mx-auto h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+        <div className="error-boundary-container min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 px-4">
+          <div className="error-boundary-content max-w-md w-full text-center">
+            <div className="error-boundary-icon-container mb-6">
+              <div className="error-boundary-icon-wrapper mx-auto h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                 <svg
-                  className="h-8 w-8 text-red-600 dark:text-red-400"
+                  className="error-boundary-icon-svg h-8 w-8 text-red-600 dark:text-red-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -61,16 +61,16 @@ export class ErrorBoundary extends Component<Props, State> {
                 </svg>
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="error-boundary-title text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Something went wrong
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="error-boundary-message text-gray-600 dark:text-gray-400 mb-6">
               We encountered an unexpected error. Please try refreshing the page.
             </p>
-            <div className="space-y-3">
+            <div className="error-boundary-actions space-y-3">
               <button
                 onClick={() => window.location.reload()}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="error-boundary-refresh-button w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Refresh Page
               </button>
@@ -79,17 +79,17 @@ export class ErrorBoundary extends Component<Props, State> {
                   this.setState({ hasError: false, error: null });
                   window.location.href = '/home';
                 }}
-                className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                className="error-boundary-home-button w-full px-4 py-2 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
               >
                 Go to Home
               </button>
             </div>
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-6 text-left">
-                <summary className="cursor-pointer text-sm text-gray-500 dark:text-gray-400 mb-2">
+              <details className="error-boundary-error-details mt-6 text-left">
+                <summary className="error-boundary-error-details-summary cursor-pointer text-sm text-gray-500 dark:text-gray-400 mb-2">
                   Error Details (Development Only)
                 </summary>
-                <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-4 rounded overflow-auto">
+                <pre className="error-boundary-error-details-content text-xs bg-gray-100 dark:bg-gray-900 p-4 rounded overflow-auto">
                   {this.state.error.toString()}
                   {this.state.error.stack}
                 </pre>

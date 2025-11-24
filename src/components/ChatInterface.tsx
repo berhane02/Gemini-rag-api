@@ -371,199 +371,208 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             {/* Navbar - Responsive */}
             <header className="chat-header border-b bg-white dark:bg-gray-900 dark:border-gray-800 shadow-sm sticky top-0 z-20">
                 {/* Mobile Layout */}
-                <div className="px-2 py-1 sm:hidden flex items-center gap-2 relative">
-                    {/* Title - Smaller on mobile */}
-                    <h1 className="text-xs font-semibold text-gray-800 dark:text-white whitespace-nowrap shrink-0">RAG</h1>
-                    
-                    {/* Tabs - Icons only on mobile */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                            onClick={() => handleTabSwitch('home')}
-                            className={`p-1 rounded-md transition-all duration-200 relative ${
-                                activeTab === 'home'
-                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md'
-                                    : 'bg-gray-100 dark:bg-gray-800'
-                            }`}
-                            title="Home Chat"
-                        >
-                            <Home 
-                                size={14} 
-                                className={activeTab === 'home' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}
-                                strokeWidth={2.5}
-                            />
-                        </button>
-                        <button
-                            onClick={() => handleTabSwitch('previous')}
-                            className={`p-1 rounded-md transition-all duration-200 relative ${
-                                activeTab === 'previous'
-                                    ? 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-md'
-                                    : 'bg-gray-100 dark:bg-gray-800'
-                            }`}
-                            title="Previous Chat"
-                        >
-                            <History 
-                                size={14} 
-                                className={activeTab === 'previous' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}
-                                strokeWidth={2.5}
-                            />
-                            {previousMessages.length > 0 && (
-                                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-white text-[7px] flex items-center justify-center font-bold">
-                                    {previousMessages.length > 9 ? '9+' : previousMessages.length}
-                                </span>
-                            )}
-                        </button>
-                        {messages.length > 0 && (
-                            <motion.button
-                                onClick={handleClearChat}
-                                whileTap={{ scale: 0.95 }}
-                                className="p-1 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-md"
-                                title="Clear chat"
+                <div className="px-2 py-1 sm:hidden flex items-center gap-1.5 relative min-w-0">
+                    {/* Left section - Title and Tabs */}
+                    <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                        {/* Title - Smaller on mobile */}
+                        <h1 className="text-xs font-semibold text-gray-800 dark:text-white whitespace-nowrap shrink-0">RAG</h1>
+                        
+                        {/* Tabs - Icons only on mobile */}
+                        <div className="flex items-center gap-1 shrink-0">
+                            <button
+                                onClick={() => handleTabSwitch('home')}
+                                className={`p-1 rounded-md transition-all duration-200 relative shrink-0 ${
+                                    activeTab === 'home'
+                                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md'
+                                        : 'bg-gray-100 dark:bg-gray-800'
+                                }`}
+                                title="Home Chat"
                             >
-                                <Trash2 size={14} className="text-white" strokeWidth={2.5} />
-                            </motion.button>
-                        )}
+                                <Home 
+                                    size={14} 
+                                    className={activeTab === 'home' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}
+                                    strokeWidth={2.5}
+                                />
+                            </button>
+                            <button
+                                onClick={() => handleTabSwitch('previous')}
+                                className={`p-1 rounded-md transition-all duration-200 relative shrink-0 ${
+                                    activeTab === 'previous'
+                                        ? 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-md'
+                                        : 'bg-gray-100 dark:bg-gray-800'
+                                }`}
+                                title="Previous Chat"
+                            >
+                                <History 
+                                    size={14} 
+                                    className={activeTab === 'previous' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}
+                                    strokeWidth={2.5}
+                                />
+                                {previousMessages.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-white text-[7px] flex items-center justify-center font-bold">
+                                        {previousMessages.length > 9 ? '9+' : previousMessages.length}
+                                    </span>
+                                )}
+                            </button>
+                            {messages.length > 0 && (
+                                <motion.button
+                                    onClick={handleClearChat}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="p-1 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-md shrink-0"
+                                    title="Clear chat"
+                                >
+                                    <Trash2 size={14} className="text-white" strokeWidth={2.5} />
+                                </motion.button>
+                            )}
+                        </div>
                     </div>
                     
-                    {/* File Upload - Centered on mobile */}
-                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center z-10">
-                        <FileUpload compact={true} showText={false} />
+                    {/* File Upload - Centered on mobile with proper spacing */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center z-10 pointer-events-none">
+                        <div className="pointer-events-auto">
+                            <FileUpload compact={true} showText={false} />
+                        </div>
                     </div>
                     
-                    {/* Auth Button - Right end */}
-                    <div className="flex items-center ml-auto shrink-0">
+                    {/* Auth Button - Right end with proper spacing */}
+                    <div className="flex items-center ml-auto shrink-0 z-20 relative">
                         <AuthButton />
                     </div>
                 </div>
 
                 {/* Tablet/Desktop Layout */}
                 <div className="hidden sm:flex px-2 md:px-3 lg:px-4 py-1 md:py-1.5 items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 relative min-w-0">
-                    {/* RAG Chatbot Title */}
-                    <h1 className="chat-header-title text-xs md:text-sm lg:text-base font-semibold text-gray-800 dark:text-white whitespace-nowrap shrink-0">RAG Chatbot</h1>
-                    
-                    {/* Divider */}
-                    <div className="h-4 md:h-5 w-px bg-gray-300 dark:bg-gray-700 shrink-0" />
-                    
-                    {/* Tabs - with min-width to prevent overlap */}
-                    <div className="flex items-center gap-1 md:gap-1.5 lg:gap-2 shrink-0 min-w-0">
-                        <button
-                            onClick={() => handleTabSwitch('home')}
-                            className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group ${
-                                activeTab === 'home'
-                                    ? 'text-blue-700 dark:text-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                            }`}
-                        >
-                            {/* Gradient background effect */}
-                            {activeTab === 'home' && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 animate-pulse" />
-                            )}
-                            <div className={`relative flex items-center justify-center w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-md transition-all duration-200 ${
-                                activeTab === 'home'
-                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30'
-                                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-blue-100 group-hover:to-indigo-100 dark:group-hover:from-blue-900/30 dark:group-hover:to-indigo-900/30'
-                            }`}>
-                                <Home 
-                                    size={10}
-                                    className={`md:w-[12px] md:h-[12px] lg:w-[14px] lg:h-[14px] transition-all duration-200 ${
-                                        activeTab === 'home'
-                                            ? 'text-white'
-                                            : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
-                                    }`}
-                                    strokeWidth={activeTab === 'home' ? 2.5 : 2}
-                                />
-                            </div>
-                            <span className="relative font-semibold hidden md:inline text-xs">Home Chat</span>
-                            <span className="relative font-semibold md:hidden text-xs">Home</span>
-                        </button>
-                        <button
-                            onClick={() => handleTabSwitch('previous')}
-                            className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group ${
-                                activeTab === 'previous'
-                                    ? 'text-purple-700 dark:text-purple-300 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/40 shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                            }`}
-                        >
-                            {/* Gradient background effect */}
-                            {activeTab === 'previous' && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-rose-500/10 animate-pulse" />
-                            )}
-                            <div className={`relative flex items-center justify-center w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-md transition-all duration-200 ${
-                                activeTab === 'previous'
-                                    ? 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-md shadow-purple-500/30'
-                                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-purple-100 group-hover:to-pink-100 dark:group-hover:from-purple-900/30 dark:group-hover:to-pink-900/30'
-                            }`}>
-                                <History 
-                                    size={10}
-                                    className={`md:w-[12px] md:h-[12px] lg:w-[14px] lg:h-[14px] transition-all duration-200 ${
-                                        activeTab === 'previous'
-                                            ? 'text-white'
-                                            : 'text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400'
-                                    }`}
-                                    strokeWidth={activeTab === 'previous' ? 2.5 : 2}
-                                />
-                            </div>
-                            <span className="relative font-semibold hidden md:inline text-xs">Previous Chat</span>
-                            <span className="relative font-semibold md:hidden text-xs">Previous</span>
-                            {previousMessages.length > 0 && (
-                                <span className={`relative ml-0.5 h-3 w-3 md:h-3.5 md:w-3.5 rounded-full flex items-center justify-center text-[7px] md:text-[8px] font-bold transition-all duration-200 ${
-                                    activeTab === 'previous'
-                                        ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-md shadow-purple-500/40'
-                                        : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm'
-                                }`}>
-                                    {previousMessages.length > 99 ? '99+' : previousMessages.length}
-                                </span>
-                            )}
-                        </button>
+                    {/* Left section - Title and Tabs */}
+                    <div className="flex items-center gap-1 md:gap-2 lg:gap-3 shrink-0 min-w-0">
+                        {/* RAG Chatbot Title */}
+                        <h1 className="chat-header-title text-xs md:text-sm lg:text-base font-semibold text-gray-800 dark:text-white whitespace-nowrap shrink-0">RAG Chatbot</h1>
                         
-                        {/* Clear Chat Button - Next to Previous Chat */}
-                    {messages.length > 0 && (
-                        <motion.button
-                            onClick={handleClearChat}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                                className="clear-chat-button group relative px-1.5 md:px-2 lg:px-2.5 xl:px-3 py-1 md:py-1.5 rounded-md transition-all duration-200 ml-0.5 md:ml-1 lg:ml-1.5 overflow-hidden shrink-0"
-                            title="Clear chat"
-                            aria-label="Clear chat"
-                        >
-                                {/* Animated gradient background */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-rose-600/20 to-pink-600/20 group-hover:from-red-600/30 group-hover:via-rose-600/30 group-hover:to-pink-600/30 transition-all duration-300" />
-                                
-                                {/* Content */}
-                                <div className="relative flex items-center justify-center gap-0.5 md:gap-1 lg:gap-1.5">
-                                    <div className="flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/30 group-hover:shadow-xl group-hover:shadow-red-500/50 transition-all duration-200">
-                                        <Trash2 
-                                            size={9}
-                                            className={`md:w-[11px] md:h-[11px] text-white transition-all duration-200 group-hover:scale-110`}
-                                            strokeWidth={2.5}
-                                        />
-                                    </div>
-                                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 group-hover:text-white transition-colors duration-200 hidden xl:inline">
-                                        Clear
-                                    </span>
+                        {/* Divider */}
+                        <div className="h-4 md:h-5 w-px bg-gray-300 dark:bg-gray-700 shrink-0" />
+                        
+                        {/* Tabs - with proper spacing to prevent overlap */}
+                        <div className="flex items-center gap-1 md:gap-1.5 lg:gap-2 shrink-0 min-w-0">
+                            <button
+                                onClick={() => handleTabSwitch('home')}
+                                className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group shrink-0 ${
+                                    activeTab === 'home'
+                                        ? 'text-blue-700 dark:text-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                }`}
+                            >
+                                {/* Gradient background effect */}
+                                {activeTab === 'home' && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 animate-pulse" />
+                                )}
+                                <div className={`relative flex items-center justify-center w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-md transition-all duration-200 shrink-0 ${
+                                    activeTab === 'home'
+                                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30'
+                                        : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-blue-100 group-hover:to-indigo-100 dark:group-hover:from-blue-900/30 dark:group-hover:to-indigo-900/30'
+                                }`}>
+                                    <Home 
+                                        size={10}
+                                        className={`md:w-[12px] md:h-[12px] lg:w-[14px] lg:h-[14px] transition-all duration-200 ${
+                                            activeTab === 'home'
+                                                ? 'text-white'
+                                                : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                                        }`}
+                                        strokeWidth={activeTab === 'home' ? 2.5 : 2}
+                                    />
                                 </div>
-                                
-                                {/* Shine effect on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
-                        </motion.button>
-                    )}
+                                <span className="relative font-semibold hidden md:inline text-xs whitespace-nowrap">Home Chat</span>
+                                <span className="relative font-semibold md:hidden text-xs whitespace-nowrap">Home</span>
+                            </button>
+                            <button
+                                onClick={() => handleTabSwitch('previous')}
+                                className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group shrink-0 ${
+                                    activeTab === 'previous'
+                                        ? 'text-purple-700 dark:text-purple-300 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/40 shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                }`}
+                            >
+                                {/* Gradient background effect */}
+                                {activeTab === 'previous' && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-rose-500/10 animate-pulse" />
+                                )}
+                                <div className={`relative flex items-center justify-center w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-md transition-all duration-200 shrink-0 ${
+                                    activeTab === 'previous'
+                                        ? 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-md shadow-purple-500/30'
+                                        : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-purple-100 group-hover:to-pink-100 dark:group-hover:from-purple-900/30 dark:group-hover:to-pink-900/30'
+                                }`}>
+                                    <History 
+                                        size={10}
+                                        className={`md:w-[12px] md:h-[12px] lg:w-[14px] lg:h-[14px] transition-all duration-200 ${
+                                            activeTab === 'previous'
+                                                ? 'text-white'
+                                                : 'text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400'
+                                        }`}
+                                        strokeWidth={activeTab === 'previous' ? 2.5 : 2}
+                                    />
+                                </div>
+                                <span className="relative font-semibold hidden md:inline text-xs whitespace-nowrap">Previous Chat</span>
+                                <span className="relative font-semibold md:hidden text-xs whitespace-nowrap">Previous</span>
+                                {previousMessages.length > 0 && (
+                                    <span className={`relative ml-0.5 h-3 w-3 md:h-3.5 md:w-3.5 rounded-full flex items-center justify-center text-[7px] md:text-[8px] font-bold transition-all duration-200 shrink-0 ${
+                                        activeTab === 'previous'
+                                            ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-md shadow-purple-500/40'
+                                            : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm'
+                                    }`}>
+                                        {previousMessages.length > 99 ? '99+' : previousMessages.length}
+                                    </span>
+                                )}
+                            </button>
+                            
+                            {/* Clear Chat Button - Next to Previous Chat */}
+                            {messages.length > 0 && (
+                                <motion.button
+                                    onClick={handleClearChat}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="clear-chat-button group relative px-1.5 md:px-2 lg:px-2.5 xl:px-3 py-1 md:py-1.5 rounded-md transition-all duration-200 ml-0.5 md:ml-1 lg:ml-1.5 overflow-hidden shrink-0"
+                                    title="Clear chat"
+                                    aria-label="Clear chat"
+                                >
+                                    {/* Animated gradient background */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-rose-600/20 to-pink-600/20 group-hover:from-red-600/30 group-hover:via-rose-600/30 group-hover:to-pink-600/30 transition-all duration-300" />
+                                    
+                                    {/* Content */}
+                                    <div className="relative flex items-center justify-center gap-0.5 md:gap-1 lg:gap-1.5">
+                                        <div className="flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/30 group-hover:shadow-xl group-hover:shadow-red-500/50 transition-all duration-200 shrink-0">
+                                            <Trash2 
+                                                size={9}
+                                                className={`md:w-[11px] md:h-[11px] text-white transition-all duration-200 group-hover:scale-110`}
+                                                strokeWidth={2.5}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-semibold text-red-600 dark:text-red-400 group-hover:text-white transition-colors duration-200 hidden xl:inline whitespace-nowrap">
+                                            Clear
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Shine effect on hover */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                                </motion.button>
+                            )}
+                        </div>
                     </div>
                     
-                    {/* File Upload - Centered in navbar, responsive positioning */}
-                    {/* Adjust positioning and size based on screen size to prevent overlap */}
-                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center z-10">
-                        {/* Show text on larger screens, icon-only on smaller screens */}
-                        <div className="hidden lg:block">
-                            <FileUpload compact={true} showText={true} />
-                        </div>
-                        <div className="block lg:hidden">
-                            <FileUpload compact={true} showText={false} />
+                    {/* File Upload - Centered in navbar with proper spacing to prevent overlap */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center z-10 pointer-events-none">
+                        <div className="pointer-events-auto">
+                            {/* Show text on larger screens, icon-only on smaller screens */}
+                            <div className="hidden lg:block">
+                                <FileUpload compact={true} showText={true} />
+                            </div>
+                            <div className="block lg:hidden">
+                                <FileUpload compact={true} showText={false} />
+                            </div>
                         </div>
                     </div>
                     
-                    {/* Actions */}
-                    <div className="chat-header-actions flex items-center gap-1 md:gap-1.5 lg:gap-2 ml-auto shrink-0">
-                    <AuthButton />
+                    {/* Right section - Actions with proper spacing */}
+                    <div className="chat-header-actions flex items-center gap-1 md:gap-1.5 lg:gap-2 ml-auto shrink-0 z-20 relative">
+                        <AuthButton />
                     </div>
                 </div>
             </header>
@@ -711,8 +720,8 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         </div>
                     </main>
 
-                    {/* Floating input container - Centered - Responsive */}
-                    <div className={`chat-input-container fixed bottom-0 left-0 ${messages.length > 0 ? 'xl:left-64 2xl:left-80' : ''} right-0 z-30 pb-4 sm:pb-6 pt-6 sm:pt-8`}>
+                    {/* Floating input container - Sticky relative to main chat area */}
+                    <div className="chat-input-container sticky bottom-0 z-30 pb-4 sm:pb-6 pt-6 sm:pt-8">
                         <div className="chat-input-wrapper relative flex w-full justify-center px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
                             {/* Gradient backdrop with blur */}
                             <div className="chat-input-backdrop absolute inset-0 -top-6 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 backdrop-blur-md" />
@@ -741,9 +750,6 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                             </div>
                         </div>
                     </div>
-
-                    {/* Spacer to prevent content from being hidden behind floating input */}
-                    <div className="chat-input-spacer h-32" />
                 </div>
             </div>
         </div>
