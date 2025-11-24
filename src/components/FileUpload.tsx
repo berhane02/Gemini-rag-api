@@ -354,7 +354,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                     )}
                 </div>
                 {errorMessage && (
-                    <div className="absolute top-full left-0 mt-1 px-2 py-1 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded text-[10px] text-red-700 dark:text-red-300 whitespace-nowrap z-50 shadow-lg">
+                    <div className="file-upload-compact-error-message absolute top-full left-0 mt-1 px-2 py-1 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded text-[10px] text-red-700 dark:text-red-300 whitespace-nowrap z-50 shadow-lg">
                         {errorMessage}
                     </div>
                 )}

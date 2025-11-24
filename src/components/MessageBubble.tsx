@@ -77,12 +77,12 @@ export default function MessageBubble({ message, messageIndex, onEdit }: Message
                     <ReactMarkdown
                         components={{
                             pre: ({ node, ...props }) => (
-                                <div className="relative my-4 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-                                    <div className="flex items-center justify-between bg-gray-100 px-4 py-2 dark:bg-gray-800/50">
-                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Code</span>
+                                <div className="message-code-block-container relative my-4 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                                    <div className="message-code-block-header flex items-center justify-between bg-gray-100 px-4 py-2 dark:bg-gray-800/50">
+                                        <span className="message-code-block-label text-xs font-medium text-gray-500 dark:text-gray-400">Code</span>
                                     </div>
-                                    <div className="overflow-x-auto p-4">
-                                        <pre {...props} className="bg-transparent p-0 m-0" />
+                                    <div className="message-code-block-content overflow-x-auto p-4">
+                                        <pre {...props} className="message-code-block-pre bg-transparent p-0 m-0" />
                                     </div>
                                 </div>
                             ),
@@ -91,7 +91,7 @@ export default function MessageBubble({ message, messageIndex, onEdit }: Message
                                 return (
                                     <code
                                         className={cn(
-                                            "rounded px-1.5 py-0.5 font-mono text-sm",
+                                            "message-code-inline rounded px-1.5 py-0.5 font-mono text-sm",
                                             isBlock
                                                 ? "bg-transparent"
                                                 : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"

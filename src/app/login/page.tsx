@@ -23,10 +23,10 @@ export default function LoginPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="login-page-container login-page-loading min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex items-center justify-center">
+        <div className="login-page-loading-content flex flex-col items-center gap-4">
+          <div className="login-page-loading-spinner h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="login-page-loading-text text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -48,12 +48,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="login-page-container min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-gray-50 dark:from-[#0a0a0a] dark:via-[#0a0a0a] dark:to-[#111111] transition-colors duration-300" />
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
+      <div className="login-page-background-gradient absolute inset-0 bg-gradient-to-b from-white via-white to-gray-50 dark:from-[#0a0a0a] dark:via-[#0a0a0a] dark:to-[#111111] transition-colors duration-300" />
+      <div className="login-page-ambient-glow-container absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="login-page-ambient-glow-blue absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="login-page-ambient-glow-purple absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
       </div>
 
 
@@ -61,26 +61,26 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative z-10 bg-white dark:bg-gray-950 p-8 md:p-12 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 text-center max-w-md w-full"
+        className="login-page-card relative z-10 bg-white dark:bg-gray-950 p-8 md:p-12 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 text-center max-w-md w-full"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="flex justify-center mb-8"
+          className="login-page-logo-container flex justify-center mb-8"
         >
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur-xl opacity-50" />
-            <div className="relative h-16 w-16 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Sparkles className="h-8 w-8 text-white" />
+          <div className="login-page-logo-wrapper relative">
+            <div className="login-page-logo-glow absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur-xl opacity-50" />
+            <div className="login-page-logo-icon-container relative h-16 w-16 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Sparkles className="login-page-logo-icon h-8 w-8 text-white" />
             </div>
           </div>
         </motion.div>
 
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+        <h1 className="login-page-title text-3xl font-bold text-gray-900 dark:text-white mb-4">
           👋 Welcome Back!
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-8">
+        <p className="login-page-subtitle text-gray-600 dark:text-gray-400 mb-8">
           💬 Sign in to continue your conversation.
         </p>
 
@@ -88,11 +88,11 @@ export default function LoginPage() {
           onClick={handleLogin}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="group relative w-full px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-full font-semibold text-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-black/20 dark:hover:shadow-white/20 active:scale-95 flex items-center justify-center gap-3"
+          className="login-page-signin-button group relative w-full px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-full font-semibold text-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-black/20 dark:hover:shadow-white/20 active:scale-95 flex items-center justify-center gap-3"
         >
           <LogIn size={20} />
-          <span className="relative z-10">Sign In</span>
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
+          <span className="login-page-signin-button-text relative z-10">Sign In</span>
+          <div className="login-page-signin-button-glow absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
         </motion.button>
 
         {/* Back to home link */}
@@ -100,11 +100,11 @@ export default function LoginPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.5 }}
-          className="mt-8"
+          className="login-page-back-link-container mt-8"
         >
           <a
             href="/home"
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            className="login-page-back-link text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
             ← Back to Home
           </a>

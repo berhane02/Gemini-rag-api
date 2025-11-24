@@ -17,7 +17,7 @@ export default function ThemeToggle() {
 
     if (!mounted) {
         return (
-            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />
+            <div className="theme-toggle-loading w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />
         );
     }
 
@@ -32,14 +32,14 @@ export default function ThemeToggle() {
     return (
         <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="theme-toggle-button p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-105 active:scale-95"
             aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
             title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
         >
             {isDark ? (
-                <Sun size={20} className="text-yellow-500" />
+                <Sun size={20} className="theme-toggle-icon theme-toggle-icon-sun text-yellow-500" />
             ) : (
-                <Moon size={20} className="text-gray-700 dark:text-gray-300" />
+                <Moon size={20} className="theme-toggle-icon theme-toggle-icon-moon text-gray-700 dark:text-gray-300" />
             )}
         </button>
     );

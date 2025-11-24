@@ -71,7 +71,7 @@ export default function ChatInput({
     const isButtonEnabled = hasInput && !disabled;
 
     return (
-        <form onSubmit={handleSubmit} className="relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto px-2 sm:px-3 md:px-4 py-2">
+        <form onSubmit={handleSubmit} className="chat-input-form relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto px-2 sm:px-3 md:px-4 py-2">
 
             <motion.div
                 initial={false}
@@ -82,11 +82,11 @@ export default function ChatInput({
                         : '0 8px 30px -10px rgba(59,130,246,0.2)'
                 }}
                 transition={{ duration: 0.3 }}
-                className="relative group w-full"
+                className="chat-input-motion-wrapper relative group w-full"
             >
                 <div
                     className={`
-                        relative flex items-end gap-1.5 sm:gap-2 rounded-xl border-2 w-full
+                        chat-input-wrapper relative flex items-end gap-1.5 sm:gap-2 rounded-xl border-2 w-full
                         bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50
                         dark:from-blue-950/20 dark:via-gray-900 dark:to-blue-950/10
                         p-2 sm:p-2.5 md:p-3 shadow-xl transition-all duration-300 overflow-hidden
@@ -97,7 +97,7 @@ export default function ChatInput({
                     `}
                 >
                     {/* Hover background shimmer */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                    <div className="chat-input-shimmer-effect absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                     
                     {/* Focus glow */}
                     {isFocused && (
@@ -105,7 +105,7 @@ export default function ChatInput({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-blue-500/5 rounded-xl"
+                            className="chat-input-focus-glow absolute inset-0 bg-blue-500/5 rounded-xl"
                         />
                     )}
                     
@@ -120,7 +120,7 @@ export default function ChatInput({
                         placeholder="Message Gemini..."
                         rows={1}
                         disabled={disabled}
-                        className="
+                        className="chat-input-textarea
                             flex-1 min-w-0 z-10 resize-none border-0 bg-transparent
                             px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5
                             text-xs sm:text-sm md:text-base outline-none focus:ring-0
@@ -143,7 +143,7 @@ export default function ChatInput({
                                     setInput('');
                                     onCancelEdit?.();
                                 }}
-                                className="
+                                className="chat-input-cancel-edit-button
                                     relative mb-0.5 h-8 w-8 sm:h-9 sm:w-9 shrink-0 flex items-center justify-center
                                     rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400
                                     hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-300
@@ -161,7 +161,7 @@ export default function ChatInput({
                         whileHover={isButtonEnabled ? { scale: 1.08 } : {}}
                         whileTap={isButtonEnabled ? { scale: 0.92 } : {}}
                         className={`
-                            relative mb-0.5 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center 
+                            chat-input-send-button relative mb-0.5 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center 
                             rounded-lg transition-all duration-300 overflow-hidden
                             ${isButtonEnabled
                                 ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 cursor-pointer'
@@ -171,15 +171,15 @@ export default function ChatInput({
                     >
                         {isButtonEnabled && (
                             <>
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                                <div className="chat-input-send-button-shimmer absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                <div className="chat-input-send-button-highlight absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
                             </>
                         )}
 
                         <motion.div
                             animate={isButtonEnabled ? { rotate: [0, -10, 10, -10, 0] } : {}}
                             transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
-                            className="relative z-10"
+                            className="chat-input-send-button-icon-wrapper relative z-10"
                         >
                             {isButtonEnabled ? (
                                 <Sparkles className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
@@ -199,9 +199,9 @@ export default function ChatInput({
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="mt-2 text-center"
+                        className="chat-input-edit-note mt-2 text-center"
                     >
-                        <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                        <p className="chat-input-edit-note-text text-xs text-blue-600 dark:text-blue-400 font-semibold">
                             Editing message...
                         </p>
                     </motion.div>
@@ -213,9 +213,9 @@ export default function ChatInput({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="mt-3 text-center"
+                className="chat-input-disclaimer mt-3 text-center"
             >
-                <p className="text-xs text-blue-500/80 dark:text-blue-400/70 font-medium">
+                <p className="chat-input-disclaimer-text text-xs text-blue-500/80 dark:text-blue-400/70 font-medium">
                     Gemini can make mistakes. Check important info.
                 </p>
             </motion.div>

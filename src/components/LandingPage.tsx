@@ -25,7 +25,7 @@ function TypewriterText({ text, speed = 100 }: { text: string; speed?: number })
     }, [currentIndex, text, speed]);
 
     return (
-        <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent">
+        <span className="landing-page-typewriter-text bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent">
             {displayedText}
         </span>
     );
@@ -70,18 +70,18 @@ export default function LandingPage() {
     ], []);
 
     return (
-        <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 overflow-hidden relative transition-colors duration-300">
+        <div className="landing-page-container min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 overflow-hidden relative transition-colors duration-300">
             {/* Subtle gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-gray-50 dark:from-[#0a0a0a] dark:via-[#0a0a0a] dark:to-[#111111] transition-colors duration-300" />
+            <div className="landing-page-background-gradient absolute inset-0 bg-gradient-to-b from-white via-white to-gray-50 dark:from-[#0a0a0a] dark:via-[#0a0a0a] dark:to-[#111111] transition-colors duration-300" />
             
             {/* Ambient glow effects */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
+            <div className="landing-page-ambient-glow-container absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                <div className="landing-page-ambient-glow-blue absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl" />
+                <div className="landing-page-ambient-glow-purple absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-3xl" />
             </div>
 
             {/* Stars animation - Optimized with CSS for better performance */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="landing-page-stars-container absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                 {/* Reduced star count and using CSS animations */}
                 {[...Array(20)].map((_, i) => {
                     const size = Math.random() * 2 + 1;
@@ -93,7 +93,7 @@ export default function LandingPage() {
                     return (
                         <div
                             key={i}
-                            className="absolute rounded-full bg-white dark:bg-white star-twinkle"
+                            className="landing-page-star landing-page-star-small absolute rounded-full bg-white dark:bg-white star-twinkle"
                             style={{
                                 width: `${size}px`,
                                 height: `${size}px`,
@@ -119,7 +119,7 @@ export default function LandingPage() {
                     return (
                         <div
                             key={`large-${i}`}
-                            className="absolute rounded-full bg-white dark:bg-white star-twinkle-large"
+                            className="landing-page-star landing-page-star-large absolute rounded-full bg-white dark:bg-white star-twinkle-large"
                             style={{
                                 width: `${size}px`,
                                 height: `${size}px`,
@@ -136,28 +136,28 @@ export default function LandingPage() {
             </div>
 
             {/* Auth button */}
-            <div className="absolute top-6 right-6 z-20 flex items-center gap-4">
+            <div className="landing-page-auth-button-container absolute top-6 right-6 z-20 flex items-center gap-4">
                 <AuthButton />
             </div>
 
             {/* Main content */}
-            <div className="relative z-10 w-full max-w-4xl mx-auto">
+            <div className="landing-page-content-wrapper relative z-10 w-full max-w-4xl mx-auto">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="text-center mb-12"
+                    className="landing-page-main-content text-center mb-12"
                 >
                     {/* Logo/Icon */}
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.8 }}
-                        className="flex justify-center mb-8"
+                        className="landing-page-logo-container flex justify-center mb-8"
                     >
-                        <div className="relative">
+                        <div className="landing-page-logo-wrapper relative">
                             {/* Background text generation effect - Matrix-style rain - Optimized with CSS */}
-                            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+                            <div className="landing-page-matrix-container absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
                                 {/* Reduced columns and using CSS animations for better performance */}
                                 {[...Array(8)].map((_, i) => {
                                     const chars = '01AIαβγδεζηθικλμνξοπρστυφχψωRAGGPTLLM';
@@ -170,7 +170,7 @@ export default function LandingPage() {
                                     return (
                                         <div
                                             key={i}
-                                            className="absolute text-[10px] md:text-xs font-mono text-green-400/30 dark:text-green-300/20 whitespace-nowrap matrix-rain"
+                                            className="landing-page-matrix-rain-column absolute text-[10px] md:text-xs font-mono text-green-400/30 dark:text-green-300/20 whitespace-nowrap matrix-rain"
                                             style={{
                                                 left: `${8 + (i % 4) * 25}%`,
                                                 fontFamily: 'monospace',
@@ -195,7 +195,7 @@ export default function LandingPage() {
                                     return (
                                         <span
                                             key={`char-${i}`}
-                                            className="absolute text-xs font-mono text-green-500/40 dark:text-green-400/30 matrix-char"
+                                            className="landing-page-matrix-char absolute text-xs font-mono text-green-500/40 dark:text-green-400/30 matrix-char"
                                             style={{
                                                 left: `${12 + (i % 3) * 28}%`,
                                                 textShadow: '0 0 3px rgba(34, 197, 94, 0.6)',
@@ -210,25 +210,25 @@ export default function LandingPage() {
                                 })}
                             </div>
                             {/* Glow rings - static */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur-2xl opacity-60" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-3xl blur-3xl opacity-45" />
+                            <div className="landing-page-logo-glow-ring-1 absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur-2xl opacity-60" />
+                            <div className="landing-page-logo-glow-ring-2 absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-3xl blur-3xl opacity-45" />
                             
                             {/* Main icon container - static */}
-                            <div className="relative h-24 w-24 md:h-28 md:w-28 z-10">
+                            <div className="landing-page-logo-icon-container relative h-24 w-24 md:h-28 md:w-28 z-10">
                                 {/* Glass morphism effect - static */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/90 via-purple-600/90 to-pink-500/90 rounded-3xl backdrop-blur-xl border-2 border-white/30 dark:border-white/20 shadow-2xl" />
+                                <div className="landing-page-logo-glass-effect absolute inset-0 bg-gradient-to-br from-blue-500/90 via-purple-600/90 to-pink-500/90 rounded-3xl backdrop-blur-xl border-2 border-white/30 dark:border-white/20 shadow-2xl" />
                                 
                                 {/* Inner glow - static */}
-                                <div className="absolute inset-2 bg-gradient-to-br from-blue-400/50 to-purple-500/50 rounded-2xl blur-md" />
+                                <div className="landing-page-logo-inner-glow absolute inset-2 bg-gradient-to-br from-blue-400/50 to-purple-500/50 rounded-2xl blur-md" />
                                 
                                 {/* Icon - static */}
-                                <div className="relative h-full w-full flex items-center justify-center">
+                                <div className="landing-page-logo-icon-wrapper relative h-full w-full flex items-center justify-center">
                                     {/* Main sparkles icon */}
-                                    <Sparkles className="h-12 w-12 md:h-14 md:w-14 text-white drop-shadow-lg" strokeWidth={2.5} />
+                                    <Sparkles className="landing-page-logo-icon h-12 w-12 md:h-14 md:w-14 text-white drop-shadow-lg" strokeWidth={2.5} />
                                 </div>
                                 
                                 {/* CPU/Activity indicator - showing processing */}
-                                <div className="absolute -bottom-2 -right-2 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full p-1.5 shadow-lg z-20">
+                                <div className="landing-page-logo-activity-indicator absolute -bottom-2 -right-2 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full p-1.5 shadow-lg z-20">
                                     <Activity className="w-3 h-3 text-white" />
                                 </div>
                             </div>
@@ -240,9 +240,9 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3, duration: 0.8 }}
-                        className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
+                        className="landing-page-heading text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
                     >
-                        <span className="relative inline-block">
+                        <span className="landing-page-heading-text-wrapper relative inline-block">
                             {/* Typing effect text */}
                             <TypewriterText 
                                 text="🤖 RAG Chatbot"
@@ -251,7 +251,7 @@ export default function LandingPage() {
                             
                             {/* Animated gradient background - Optimized with CSS */}
                             <span
-                                className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 via-pink-600 to-blue-600 bg-[length:200%_100%] bg-clip-text text-transparent pointer-events-none gradient-shift"
+                                className="landing-page-heading-gradient-overlay absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 via-pink-600 to-blue-600 bg-[length:200%_100%] bg-clip-text text-transparent pointer-events-none gradient-shift"
                                 style={{ 
                                     backgroundSize: '200% 100%',
                                     willChange: 'background-position',
@@ -263,7 +263,7 @@ export default function LandingPage() {
                                 initial={{ width: 0 }}
                                 animate={{ width: '100%' }}
                                 transition={{ delay: 1.5, duration: 1.5, ease: "easeOut" }}
-                                className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
+                                className="landing-page-heading-underline absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
                             />
                             
                             
@@ -271,7 +271,7 @@ export default function LandingPage() {
                         
                         {/* Animated emoji - Optimized with CSS */}
                         <span
-                            className="inline-block ml-2 emoji-float"
+                            className="landing-page-heading-emoji inline-block ml-2 emoji-float"
                             style={{
                                 willChange: 'transform',
                             }}
@@ -287,7 +287,7 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4, duration: 0.5 }}
-                        className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed"
+                        className="landing-page-subtitle text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed"
                     >
                         ✨ Your intelligent assistant powered by Google Gemini. Ask questions, get instant answers from your knowledge base. 🚀
                     </motion.p>
@@ -297,29 +297,29 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5, duration: 0.5 }}
-                        className="flex justify-center mb-16"
+                        className="landing-page-cta-container flex justify-center mb-16"
                     >
                         {user ? (
                             <button
                                 onClick={handleGoToChat}
-                                className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-semibold text-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-black/20 dark:hover:shadow-white/20 active:scale-95"
+                                className="landing-page-cta-button landing-page-cta-button-chat group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-semibold text-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-black/20 dark:hover:shadow-white/20 active:scale-95"
                             >
-                                <span className="relative z-10 flex items-center gap-2">
+                                <span className="landing-page-cta-button-text relative z-10 flex items-center gap-2">
                                     Go to Chat
                                     <MessageSquare className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </span>
-                                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
+                                <div className="landing-page-cta-button-glow absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
                             </button>
                         ) : (
                             <button
                                 onClick={handleLogin}
-                                className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-semibold text-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-black/20 dark:hover:shadow-white/20 active:scale-95"
+                                className="landing-page-cta-button landing-page-cta-button-login group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-semibold text-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-black/20 dark:hover:shadow-white/20 active:scale-95"
                             >
-                                <span className="relative z-10 flex items-center gap-2">
+                                <span className="landing-page-cta-button-text relative z-10 flex items-center gap-2">
                                     Get Started
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </span>
-                                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
+                                <div className="landing-page-cta-button-glow absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
                             </button>
                         )}
                     </motion.div>
@@ -329,7 +329,7 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6, duration: 0.5 }}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8"
+                        className="landing-page-features-grid grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8"
                     >
                         {features.map((feature, index) => {
                             const Icon = feature.icon;
@@ -339,15 +339,15 @@ export default function LandingPage() {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
-                                    className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-gray-50/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all duration-200"
+                                    className="landing-page-feature-card p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-gray-50/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all duration-200"
                                 >
-                                    <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 mb-3 sm:mb-4 mx-auto">
-                                        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                    <div className="landing-page-feature-icon-container flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 mb-3 sm:mb-4 mx-auto">
+                                        <Icon className="landing-page-feature-icon w-5 h-5 sm:w-6 sm:h-6 text-white" />
                                     </div>
-                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1.5 sm:mb-2">
+                                    <h3 className="landing-page-feature-title text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1.5 sm:mb-2">
                                         {feature.title}
                                     </h3>
-                                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                    <p className="landing-page-feature-description text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                                         {feature.description}
                                     </p>
                                 </motion.div>
@@ -360,10 +360,10 @@ export default function LandingPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 1, duration: 0.5 }}
-                        className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500"
+                        className="landing-page-footer flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500"
                     >
-                        <Sparkles className="w-4 h-4" />
-                        <span>⚡ Powered by Google Gemini AI</span>
+                        <Sparkles className="landing-page-footer-icon w-4 h-4" />
+                        <span className="landing-page-footer-text">⚡ Powered by Google Gemini AI</span>
                     </motion.div>
                 </motion.div>
             </div>

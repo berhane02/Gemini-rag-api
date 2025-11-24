@@ -32,21 +32,21 @@ export default function ConversationHistory({ messages, onMessageClick, selected
     };
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+        <div className="conversation-history-container flex flex-col h-full bg-gray-50 dark:bg-gray-900">
             {/* History Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-                <div className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Conversation History</h2>
+            <div className="conversation-history-header p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                <div className="conversation-history-header-content flex items-center gap-2">
+                    <MessageSquare className="conversation-history-header-icon h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <h2 className="conversation-history-header-title text-lg font-semibold text-gray-900 dark:text-white">Conversation History</h2>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="conversation-history-header-count text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {messages.length} {messages.length === 1 ? 'message' : 'messages'}
                 </p>
             </div>
 
             {/* Vertical Scrollable History List */}
-            <div className="modern-scrollbar flex-1 overflow-y-auto scroll-smooth">
-                <div className="p-2 space-y-1">
+            <div className="conversation-history-list modern-scrollbar flex-1 overflow-y-auto scroll-smooth">
+                <div className="conversation-history-list-content p-2 space-y-1">
                     {messages.map((message, index) => {
                         const isUser = message.role === 'user';
                         const isSelected = selectedIndex === index;
@@ -59,18 +59,18 @@ export default function ConversationHistory({ messages, onMessageClick, selected
                                 transition={{ duration: 0.2, delay: index * 0.02 }}
                                 onClick={() => onMessageClick?.(index)}
                                 className={clsx(
-                                    'group relative p-3 rounded-lg cursor-pointer transition-all duration-200',
+                                    'conversation-history-item group relative p-3 rounded-lg cursor-pointer transition-all duration-200',
                                     'hover:bg-gray-100 dark:hover:bg-gray-800',
                                     isSelected 
-                                        ? 'bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-500 dark:border-blue-500 shadow-sm' 
+                                        ? 'conversation-history-item-selected bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-500 dark:border-blue-500 shadow-sm' 
                                         : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
                                 )}
                             >
                                 {/* Message Type Indicator */}
-                                <div className="flex items-start gap-2.5">
+                                <div className="conversation-history-item-content flex items-start gap-2.5">
                                     {/* Avatar/Icon */}
                                     <div className={clsx(
-                                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm overflow-hidden mt-0.5',
+                                        'conversation-history-item-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm overflow-hidden mt-0.5',
                                         isUser
                                             ? 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
                                             : 'bg-gradient-to-tr from-blue-500 to-cyan-500 text-white border-transparent'
@@ -92,11 +92,11 @@ export default function ConversationHistory({ messages, onMessageClick, selected
                                     </div>
 
                                     {/* Message Content */}
-                                    <div className="flex-1 min-w-0">
+                                    <div className="conversation-history-item-message-content flex-1 min-w-0">
                                         {/* Role Label */}
-                                        <div className="flex items-center gap-1.5 mb-1">
+                                        <div className="conversation-history-item-role-label flex items-center gap-1.5 mb-1">
                                             <span className={clsx(
-                                                'text-xs font-semibold',
+                                                'conversation-history-item-role-text text-xs font-semibold',
                                                 isUser 
                                                     ? 'text-gray-700 dark:text-gray-300' 
                                                     : 'text-blue-600 dark:text-blue-400'
@@ -104,13 +104,13 @@ export default function ConversationHistory({ messages, onMessageClick, selected
                                                 {isUser ? 'You' : 'Assistant'}
                                             </span>
                                             {isUser && (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                                <div className="conversation-history-item-online-indicator h-1.5 w-1.5 rounded-full bg-green-500" />
                                             )}
                                         </div>
                                         
                                         {/* Message Preview */}
                                         <p className={clsx(
-                                            'text-xs leading-relaxed break-words',
+                                            'conversation-history-item-preview text-xs leading-relaxed break-words',
                                             isSelected
                                                 ? 'text-gray-900 dark:text-gray-100'
                                                 : 'text-gray-600 dark:text-gray-400'
@@ -122,12 +122,12 @@ export default function ConversationHistory({ messages, onMessageClick, selected
 
                                 {/* Selection Indicator */}
                                 {isSelected && (
-                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 dark:bg-blue-400 rounded-r-full" />
+                                    <div className="conversation-history-item-selection-indicator absolute left-0 top-0 bottom-0 w-1 bg-blue-500 dark:bg-blue-400 rounded-r-full" />
                                 )}
                             </motion.div>
                         );
                     })}
-                    <div ref={historyEndRef} />
+                    <div ref={historyEndRef} className="conversation-history-list-end" />
                 </div>
             </div>
         </div>
