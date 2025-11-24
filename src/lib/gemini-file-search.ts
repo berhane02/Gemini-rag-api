@@ -195,7 +195,7 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
         logger.info('Operation completed successfully', { operationName: operation.name });
 
         // Check if response contains file information
-        let fileDocumentName = null;
+        let fileDocumentName: string | null = null;
         if (operation.response) {
             const responseData = operation.response as any;
             fileDocumentName = responseData.fileSearchDocument?.name ||
@@ -206,7 +206,76 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
 
         // Wait additional time for indexing to complete (File Search needs time to index)
         logger.debug('Waiting for file indexing to complete');
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds for indexing
+
+        // Verify file is in the store and has ACTIVE state
+        let fileReady = false;
+        let checkAttempts = 0;
+        const maxCheckAttempts = 12; // 1 minute max (12 * 5 seconds)
+
+        while (!fileReady && checkAttempts < maxCheckAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            checkAttempts++;
+
+            try {
+                // If we have the file document name, check it directly
+                if (fileDocumentName) {
+                    const fileStatus = await client.files.get({ name: fileDocumentName });
+                    logger.debug('File status check', {
+                        fileName,
+                        state: fileStatus.state,
+                        name: fileStatus.name
+                    });
+
+                    if (fileStatus.state === 'ACTIVE') {
+                        fileReady = true;
+                    } else if (fileStatus.state === 'FAILED') {
+                        throw new Error(`File processing failed with state: ${fileStatus.state}`);
+                    }
+                } else {
+                    // Fallback: List files in the store to check status
+                    // Note: This might not be supported in all SDK versions, so we wrap in try/catch
+                    // @ts-ignore - listFiles might not be in type definition
+                    const storeFiles = await client.fileSearchStores.listFiles({
+                        fileSearchStoreName: store.name
+                    });
+
+                    // Find our file
+                    const uploadedFile = storeFiles.files?.find((f: any) =>
+                        f.displayName === fileName || f.name === fileDocumentName
+                    );
+
+                    if (uploadedFile) {
+                        logger.debug('File status check from list', {
+                            fileName,
+                            state: uploadedFile.state,
+                            name: uploadedFile.name
+                        });
+
+                        if (uploadedFile.state === 'ACTIVE') {
+                            fileReady = true;
+                            fileDocumentName = uploadedFile.name; // Ensure we have the correct name
+                        } else if (uploadedFile.state === 'FAILED') {
+                            throw new Error(`File processing failed with state: ${uploadedFile.state}`);
+                        }
+                    } else {
+                        logger.warn('File not found in store yet', { fileName, attempt: checkAttempts });
+                    }
+                }
+            } catch (checkError: any) {
+                logger.warn('Error checking file status', checkError);
+                // If we can't check status, we might just have to wait and hope
+                if (checkAttempts > 3 && !fileDocumentName) {
+                    logger.info('Cannot verify file status, assuming processing will complete');
+                    break;
+                }
+            }
+        }
+
+        if (!fileReady) {
+            logger.warn('File not ready after waiting, but proceeding', { fileName });
+        } else {
+            logger.info('File is ACTIVE and ready for search', { fileName });
+        }
 
         // Clean up temp file
         await fs.unlink(tempPath).catch(() => { });
