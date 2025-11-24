@@ -36,6 +36,6 @@ export default function UploadPage() {
   }
 
   // If not loading, show nothing (will redirect via useEffect)
-  return null;
+    return null;
 }
 

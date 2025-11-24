@@ -371,17 +371,12 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             {/* Navbar - Responsive */}
             <header className="chat-header border-b bg-white dark:bg-gray-900 dark:border-gray-800 shadow-sm sticky top-0 z-20">
                 {/* Mobile Layout */}
-                <div className="px-2 py-1 sm:hidden flex items-center gap-2">
+                <div className="px-2 py-1 sm:hidden flex items-center gap-2 relative">
                     {/* Title - Smaller on mobile */}
-                    <h1 className="text-xs font-semibold text-gray-800 dark:text-white whitespace-nowrap">RAG</h1>
-                    
-                    {/* File Upload - Icon only on mobile */}
-                    <div className="flex items-center">
-                        <FileUpload compact={true} />
-                    </div>
+                    <h1 className="text-xs font-semibold text-gray-800 dark:text-white whitespace-nowrap shrink-0">RAG</h1>
                     
                     {/* Tabs - Icons only on mobile */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <button
                             onClick={() => handleTabSwitch('home')}
                             className={`p-1 rounded-md transition-all duration-200 relative ${
@@ -429,22 +424,27 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         )}
                     </div>
                     
+                    {/* File Upload - Centered on mobile */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center z-10">
+                        <FileUpload compact={true} showText={false} />
+                    </div>
+                    
                     {/* Auth Button - Right end */}
-                    <div className="flex items-center ml-auto">
+                    <div className="flex items-center ml-auto shrink-0">
                         <AuthButton />
                     </div>
                 </div>
 
                 {/* Tablet/Desktop Layout */}
-                <div className="hidden sm:flex px-2 md:px-3 lg:px-4 py-1 md:py-1.5 items-center gap-2 md:gap-3 lg:gap-4 relative">
+                <div className="hidden sm:flex px-2 md:px-3 lg:px-4 py-1 md:py-1.5 items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 relative min-w-0">
                     {/* RAG Chatbot Title */}
-                    <h1 className="chat-header-title text-xs md:text-sm lg:text-base font-semibold text-gray-800 dark:text-white whitespace-nowrap">RAG Chatbot</h1>
+                    <h1 className="chat-header-title text-xs md:text-sm lg:text-base font-semibold text-gray-800 dark:text-white whitespace-nowrap shrink-0">RAG Chatbot</h1>
                     
                     {/* Divider */}
-                    <div className="h-4 md:h-5 w-px bg-gray-300 dark:bg-gray-700" />
+                    <div className="h-4 md:h-5 w-px bg-gray-300 dark:bg-gray-700 shrink-0" />
                     
-                    {/* Tabs */}
-                    <div className="flex items-center gap-1.5 md:gap-2">
+                    {/* Tabs - with min-width to prevent overlap */}
+                    <div className="flex items-center gap-1 md:gap-1.5 lg:gap-2 shrink-0 min-w-0">
                         <button
                             onClick={() => handleTabSwitch('home')}
                             className={`px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 flex items-center justify-center gap-1.5 md:gap-2 text-xs font-medium transition-all duration-200 rounded-md relative overflow-hidden group ${
@@ -516,21 +516,21 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         </button>
                         
                         {/* Clear Chat Button - Next to Previous Chat */}
-                        {messages.length > 0 && (
-                            <motion.button
-                                onClick={handleClearChat}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="clear-chat-button group relative px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 rounded-md transition-all duration-200 ml-1.5 overflow-hidden"
-                                title="Clear chat"
-                                aria-label="Clear chat"
-                            >
+                    {messages.length > 0 && (
+                        <motion.button
+                            onClick={handleClearChat}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                                className="clear-chat-button group relative px-1.5 md:px-2 lg:px-2.5 xl:px-3 py-1 md:py-1.5 rounded-md transition-all duration-200 ml-0.5 md:ml-1 lg:ml-1.5 overflow-hidden shrink-0"
+                            title="Clear chat"
+                            aria-label="Clear chat"
+                        >
                                 {/* Animated gradient background */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-rose-600/20 to-pink-600/20 group-hover:from-red-600/30 group-hover:via-rose-600/30 group-hover:to-pink-600/30 transition-all duration-300" />
                                 
                                 {/* Content */}
-                                <div className="relative flex items-center justify-center gap-1 md:gap-1.5">
+                                <div className="relative flex items-center justify-center gap-0.5 md:gap-1 lg:gap-1.5">
                                     <div className="flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-md bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/30 group-hover:shadow-xl group-hover:shadow-red-500/50 transition-all duration-200">
                                         <Trash2 
                                             size={9}
@@ -538,7 +538,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                                             strokeWidth={2.5}
                                         />
                                     </div>
-                                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 group-hover:text-white transition-colors duration-200 hidden lg:inline">
+                                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 group-hover:text-white transition-colors duration-200 hidden xl:inline">
                                         Clear
                                     </span>
                                 </div>
@@ -549,14 +549,21 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                     )}
                     </div>
                     
-                    {/* File Upload - Centered in navbar */}
-                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
-                        <FileUpload compact={true} showText={true} />
+                    {/* File Upload - Centered in navbar, responsive positioning */}
+                    {/* Adjust positioning and size based on screen size to prevent overlap */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center z-10">
+                        {/* Show text on larger screens, icon-only on smaller screens */}
+                        <div className="hidden lg:block">
+                            <FileUpload compact={true} showText={true} />
+                        </div>
+                        <div className="block lg:hidden">
+                            <FileUpload compact={true} showText={false} />
+                        </div>
                     </div>
                     
                     {/* Actions */}
-                    <div className="chat-header-actions flex items-center gap-1.5 md:gap-2 ml-auto">
-                        <AuthButton />
+                    <div className="chat-header-actions flex items-center gap-1 md:gap-1.5 lg:gap-2 ml-auto shrink-0">
+                    <AuthButton />
                     </div>
                 </div>
             </header>
@@ -588,7 +595,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         confirmColor="red"
                     />
 
-                    <main className="chat-main-content modern-scrollbar flex-1 overflow-y-auto scroll-smooth relative pb-32">
+                    <main className="chat-main-content modern-scrollbar flex-1 overflow-y-auto scroll-smooth relative pb-32 pt-4 sm:pt-6">
                         {/* Scrollable content area - Centered */}
                         <div className="chat-messages-wrapper px-4 sm:px-6 md:px-8 lg:px-12 pb-12">
                             {messages.length === 0 ? (

@@ -129,14 +129,35 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
 
     // Poll for processing status
     const checkProcessingStatus = useCallback(async () => {
+        if (!file) return true;
+
         try {
             const response = await fetch('/api/upload/status');
             if (!response.ok) {
                 logger.error('Failed to check processing status', new Error(`Status: ${response.status}`));
-                return;
+                return false; // Continue polling on error
             }
             const data = await response.json();
 
+            // Find the status of the current file
+            const currentFile = data.files?.find((f: any) => f.fileName === file.name);
+            
+            if (currentFile) {
+                // Update status based on the specific file's status
+                if (currentFile.status === 'ready') {
+                    setProcessingStatus('ready');
+                    return true; // File is ready, stop polling
+                } else if (currentFile.status === 'error') {
+                    setProcessingStatus('error');
+                    setErrorMessage(currentFile.errorMessage || 'File processing failed');
+                    return true; // Stop polling on error
+                } else if (currentFile.status === 'processing' || currentFile.status === 'uploading') {
+                    setProcessingStatus('processing');
+                    return false; // Still processing, continue polling
+                }
+            }
+
+            // Fallback to overall status if file not found
             if (data.allReady) {
                 setProcessingStatus('ready');
                 return true; // All files ready
@@ -148,12 +169,13 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                 setErrorMessage('Some files failed to process');
                 return true; // Stop polling on error
             }
+            
             return true; // No files, stop polling
         } catch (error) {
             logger.error('Error checking processing status', error);
-            return true; // Stop polling on error
+            return false; // Continue polling on error
         }
-    }, []);
+    }, [file]);
 
     // Start polling after successful upload
     useEffect(() => {
@@ -205,6 +227,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
         setUploading(true);
         setUploadSuccess(false);
         setErrorMessage(null);
+        setProcessingStatus('uploading'); // Set status to uploading when upload starts
         const formData = new FormData();
         formData.append('file', file);
 
@@ -246,6 +269,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
             }
 
             setErrorMessage(errorMsg);
+            setProcessingStatus('error');
         } finally {
             setUploading(false);
         }
@@ -273,37 +297,59 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
             <div className="file-upload-compact relative">
                 <div
                     {...getRootProps()}
-                    className={clsx(
+                        className={clsx(
                         'relative rounded-md cursor-pointer transition-all duration-200 overflow-hidden group flex items-center gap-1.5',
                         showText
                             ? 'px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5'
                             : 'p-1.5',
-                        uploading
+                        uploading || processingStatus === 'processing'
                             ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                            : uploadSuccess
+                            : processingStatus === 'ready'
                                 ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                                : isDragActive
-                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 scale-105 shadow-lg shadow-blue-500/30'
-                                    : 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 hover:from-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/50 dark:hover:to-indigo-800/50'
+                                : uploadSuccess
+                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                                    : isDragActive
+                                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 scale-105 shadow-lg shadow-blue-500/30'
+                                        : 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 hover:from-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/50 dark:hover:to-indigo-800/50'
                     )}
-                    title={uploading ? 'Uploading...' : uploadSuccess ? 'Upload successful' : 'Upload file'}
+                    title={
+                        uploading 
+                            ? 'Uploading...' 
+                            : processingStatus === 'processing' 
+                                ? 'Processing...' 
+                                : processingStatus === 'ready' 
+                                    ? 'Ready for query' 
+                                    : uploadSuccess 
+                                        ? 'Upload successful' 
+                                        : 'Upload file'
+                    }
                 >
                     <input {...getInputProps()} className="file-upload-input" />
                     {uploading ? (
                         <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-white animate-spin" />
-                    ) : uploadSuccess ? (
+                    ) : processingStatus === 'ready' ? (
                         <CheckCircle2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-white" />
+                    ) : processingStatus === 'processing' || uploadSuccess ? (
+                        <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-white animate-spin" />
                     ) : (
                         <Upload className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors" />
                     )}
                     {showText && (
                         <span className={clsx(
                             "text-xs md:text-sm font-bold transition-colors whitespace-nowrap",
-                            uploading || uploadSuccess || isDragActive
+                            uploading || uploadSuccess || processingStatus === 'processing' || processingStatus === 'ready' || isDragActive
                                 ? "text-white"
                                 : "text-gray-800 dark:text-gray-200"
                         )}>
-                            {uploading ? 'Uploading...' : processingStatus === 'processing' ? 'Processing...' : uploadSuccess ? 'Ready!' : 'Upload Doc'}
+                            {uploading 
+                                ? 'Uploading...' 
+                                : processingStatus === 'processing' 
+                                    ? 'Processing...' 
+                                    : processingStatus === 'ready' 
+                                        ? 'Ready for query' 
+                                        : uploadSuccess 
+                                            ? 'Processing...' 
+                                            : 'Upload Doc'}
                         </span>
                     )}
                 </div>
@@ -440,7 +486,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                                 processingStatus === 'processing' ? "border-blue-500 dark:border-blue-600" : "border-blue-200 dark:border-blue-800"
                             )}>
                                 {/* Show processing status if file is being processed */}
-                                {processingStatus === 'processing' && (
+                                {(processingStatus === 'processing' || (uploadSuccess && processingStatus !== 'ready')) && (
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -523,7 +569,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                                         className="file-processing-ready mt-2 p-2 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-700 rounded-lg flex items-center gap-2"
                                     >
                                         <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
-                                        <span className="text-xs text-green-700 dark:text-green-300 font-medium">Ready to chat!</span>
+                                        <span className="text-xs text-green-700 dark:text-green-300 font-medium">Ready for query</span>
                                     </motion.div>
                                 )}
                             </div>

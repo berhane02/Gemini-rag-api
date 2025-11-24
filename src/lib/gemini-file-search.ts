@@ -143,6 +143,16 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
 
         logger.info('Uploading file to store', { userId, storeName: store.name, fileName, mimeType, size: fileBuffer.length });
 
+        // Track file immediately as 'uploading' so polling can see it
+        uploadedFiles.set(fileKey, {
+            userId,
+            fileName,
+            size: fileBuffer.length,
+            uploadedAt: new Date(),
+            storeName: store.name,
+            processingStatus: 'uploading'
+        });
+
         // Save buffer to temporary file with unique name to prevent collisions
         // Include userId and timestamp to ensure uniqueness across concurrent uploads
         const tempDir = os.tmpdir();
@@ -161,6 +171,9 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
         });
 
         logger.info('Upload operation started', { operationName: operation.name });
+
+        // Update status to 'processing'
+        updateFileProcessingStatus(userId, fileName, fileBuffer.length, 'processing');
 
         // Wait until import is complete (as per official docs: check every 5 seconds)
         let attempts = 0;
@@ -198,107 +211,23 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
         let fileDocumentName: string | null = null;
         if (operation.response) {
             const responseData = operation.response as any;
+            // Try multiple possible paths for file document name
             fileDocumentName = responseData.fileSearchDocument?.name ||
+                responseData.fileSearchDocument?.file?.name ||
                 responseData.document?.name ||
+                responseData.document?.file?.name ||
+                responseData.file?.name ||
                 responseData.name;
-            logger.debug('File document created', { fileDocumentName, responseKeys: Object.keys(responseData) });
+            logger.debug('File document created', { 
+                fileDocumentName, 
+                responseKeys: Object.keys(responseData),
+                responseData: JSON.stringify(responseData).substring(0, 500) // Log first 500 chars for debugging
+            });
         }
 
         // Wait additional time for indexing to complete (File Search needs time to index)
-        logger.debug('Waiting for file indexing to complete');
-
-        // Verify file is in the store and has ACTIVE state
-        let fileReady = false;
-        let checkAttempts = 0;
-        const maxCheckAttempts = 12; // 1 minute max (12 * 5 seconds)
-
-        while (!fileReady && checkAttempts < maxCheckAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            checkAttempts++;
-
-            try {
-                // If we have the file document name, check it directly
-                if (fileDocumentName) {
-                    const fileStatus = await client.files.get({ name: fileDocumentName });
-                    logger.debug('File status check', {
-                        fileName,
-                        state: fileStatus.state,
-                        name: fileStatus.name
-                    });
-
-                    if (fileStatus.state === 'ACTIVE') {
-                        fileReady = true;
-                    } else if (fileStatus.state === 'FAILED') {
-                        throw new Error(`File processing failed with state: ${fileStatus.state}`);
-                    }
-                } else {
-                    // Fallback: List files in the store to check status
-                    // Note: This might not be supported in all SDK versions, so we wrap in try/catch
-                    // @ts-ignore - listFiles might not be in type definition
-                    const storeFiles = await client.fileSearchStores.listFiles({
-                        fileSearchStoreName: store.name
-                    });
-
-                    // Find our file
-                    const uploadedFile = storeFiles.files?.find((f: any) =>
-                        f.displayName === fileName || f.name === fileDocumentName
-                    );
-
-                    if (uploadedFile) {
-                        logger.debug('File status check from list', {
-                            fileName,
-                            state: uploadedFile.state,
-                            name: uploadedFile.name
-                        });
-
-                        if (uploadedFile.state === 'ACTIVE') {
-                            fileReady = true;
-                            fileDocumentName = uploadedFile.name; // Ensure we have the correct name
-                        } else if (uploadedFile.state === 'FAILED') {
-                            throw new Error(`File processing failed with state: ${uploadedFile.state}`);
-                        }
-                    } else {
-                        logger.warn('File not found in store yet', { fileName, attempt: checkAttempts });
-                    }
-                }
-            } catch (checkError: any) {
-                logger.warn('Error checking file status', checkError);
-                // If we can't check status, we might just have to wait and hope
-                if (checkAttempts > 3 && !fileDocumentName) {
-                    logger.info('Cannot verify file status, assuming processing will complete');
-                    break;
-                }
-            }
-        }
-
-        if (!fileReady) {
-            logger.warn('File not ready after waiting, but proceeding', { fileName });
-        } else {
-            logger.info('File is ACTIVE and ready for search', { fileName });
-        }
-
-        // Clean up temp file
-        await fs.unlink(tempPath).catch(() => { });
-
-        logger.info('File successfully uploaded and indexed', {
-            userId,
-            fileName,
-            storeName: store.name,
-            fileDocumentName,
-            fileKey,
-            fileSize: fileBuffer.length,
-        });
-
-        // Track the uploaded file with store reference and user ID
-        uploadedFiles.set(fileKey, {
-            userId,
-            fileName,
-            size: fileBuffer.length,
-            uploadedAt: new Date(),
-            storeName: store.name,
-            fileDocumentName: fileDocumentName,
-            processingStatus: 'ready' // File is ready after indexing wait
-        });
+        // We do this in the background so we can return "processing" status to the UI immediately
+        verifyFileStateInBackground(client, store.name, fileName, fileDocumentName, fileKey, userId, fileBuffer.length, tempPath);
 
         const userFileCount = Array.from(uploadedFiles.values()).filter(f => f.userId === userId).length;
         logger.debug('File tracked successfully', {
@@ -318,6 +247,9 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
         };
     } catch (error: any) {
         logger.error('Error uploading to Gemini', error, { userId, fileName });
+
+        // Update status to error
+        updateFileProcessingStatus(userId, fileName, fileBuffer.length, 'error', error.message);
 
         // Check if error indicates file already exists
         const errorMessage = error?.message || JSON.stringify(error);
@@ -542,6 +474,135 @@ export function hasUploadedFiles(userId?: string): boolean {
 }
 
 // Function to get count of uploaded files for a specific user
+// Background verification function
+async function verifyFileStateInBackground(
+    client: any,
+    storeName: string,
+    fileName: string,
+    fileDocumentName: string | null,
+    fileKey: string,
+    userId: string,
+    fileSize: number,
+    tempPath: string
+) {
+    logger.debug('Starting background file verification', { fileName });
+
+    try {
+        // Verify file is in the store and has ACTIVE state
+        // Following the pattern from Google Gemini API sample: poll until file is ACTIVE
+        let fileReady = false;
+        let checkAttempts = 0;
+        const maxCheckAttempts = 60; // 2 minutes max (60 * 2 seconds)
+
+        while (!fileReady && checkAttempts < maxCheckAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s between checks (as per sample)
+            checkAttempts++;
+
+            try {
+                // If we have the file document name, check it directly using Gemini API
+                if (fileDocumentName) {
+                    const fileStatus = await client.files.get({ name: fileDocumentName });
+                    logger.debug('File status check', {
+                        fileName,
+                        state: fileStatus.state,
+                        name: fileStatus.name,
+                        checkAttempts
+                    });
+
+                    // Check state (Gemini uses uppercase states: PROCESSING, ACTIVE, FAILED)
+                    // Following the sample pattern: loop while state is PROCESSING
+                    if (fileStatus.state === 'ACTIVE') {
+                        fileReady = true;
+                        logger.info('File is ACTIVE and ready for search', { fileName, fileDocumentName });
+                    } else if (fileStatus.state === 'FAILED') {
+                        throw new Error(`File processing failed with state: ${fileStatus.state}`);
+                    } else if (fileStatus.state === 'PROCESSING') {
+                        // Continue polling while processing (this is the expected state during processing)
+                        if (checkAttempts % 5 === 0) {
+                            // Log every 5th attempt to avoid spam
+                            logger.debug('File is processing...', { fileName, checkAttempts, elapsedSeconds: checkAttempts * 2 });
+                        }
+                    } else {
+                        // Unknown state, log and continue polling
+                        logger.warn('File in unknown state, continuing to check', { fileName, state: fileStatus.state, checkAttempts });
+                    }
+                } else {
+                    // Fallback: If we don't have fileDocumentName, the operation completed successfully
+                    // so we'll wait a reasonable time for indexing and then mark as ready
+                    // Since the operation already completed, the file should be ready soon
+                    logger.debug('No fileDocumentName available, waiting for indexing', {
+                        fileName,
+                        checkAttempts,
+                        maxCheckAttempts
+                    });
+                    
+                    // After a few checks (about 10-12 seconds), assume ready since operation completed
+                    if (checkAttempts >= 6) {
+                        logger.info('Operation completed successfully, marking file as ready after wait period', {
+                            fileName,
+                            checkAttempts
+                        });
+                        fileReady = true;
+                    }
+                }
+            } catch (checkError: any) {
+                // Only log errors that are not expected transient states
+                // 404 errors are expected when file is still processing or not yet available
+                const isExpectedError = checkError?.status === 404 || 
+                                       checkError?.code === 404 ||
+                                       checkError?.message?.includes('not found') ||
+                                       checkError?.message?.includes('404');
+                
+                if (!isExpectedError) {
+                    logger.warn('Error checking file status in background', {
+                        fileName,
+                        checkAttempts,
+                        fileDocumentName: fileDocumentName || 'none',
+                        errorMessage: checkError?.message,
+                        errorStatus: checkError?.status || checkError?.code,
+                        error: checkError
+                    });
+                }
+                
+                // If error is fatal (like auth error or processing failed), stop
+                if (checkError?.message?.includes('processing failed') || 
+                    checkError?.message?.includes('FAILED') ||
+                    checkError?.status === 401 || 
+                    checkError?.status === 403) {
+                    updateFileProcessingStatus(userId, fileName, fileSize, 'error', checkError.message || 'File processing failed');
+                    await fs.unlink(tempPath).catch(() => { });
+                    return;
+                }
+                // For expected errors (like 404), continue checking
+                // This handles the case where file might not be immediately available after upload
+            }
+        }
+
+        if (fileReady) {
+            logger.info('File is ACTIVE and ready for search (background check)', { fileName });
+            updateFileProcessingStatus(userId, fileName, fileSize, 'ready');
+
+            // Update the entry with the fileDocumentName if we have it
+            const finalFileEntry = uploadedFiles.get(fileKey);
+            if (finalFileEntry && fileDocumentName) {
+                uploadedFiles.set(fileKey, {
+                    ...finalFileEntry,
+                    fileDocumentName: fileDocumentName
+                });
+            }
+        } else {
+            logger.warn('File verification timed out in background', { fileName });
+            updateFileProcessingStatus(userId, fileName, fileSize, 'error', 'Processing timed out');
+        }
+    } catch (error: any) {
+        logger.error('Background verification error', error);
+        updateFileProcessingStatus(userId, fileName, fileSize, 'error', 'Processing failed');
+    } finally {
+        // Clean up temp file
+        await fs.unlink(tempPath).catch(() => { });
+    }
+}
+
 export function getUploadedFilesCount(userId?: string): number {
     if (!userId) {
         return uploadedFiles.size;

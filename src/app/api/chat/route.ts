@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
     try {
-        // Check authentication with Clerk
+    // Check authentication with Clerk
         let userId: string | null = null;
         try {
             const authResult = await auth();
@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
             );
         }
         
-        if (!userId) {
+    if (!userId) {
             logger.warn('Unauthorized chat request attempt');
             return NextResponse.json(
                 { error: 'Unauthorized. Please log in to use the chat.' },
                 { status: 401 }
             );
-        }
+    }
 
         // Parse and validate request body
         let body;

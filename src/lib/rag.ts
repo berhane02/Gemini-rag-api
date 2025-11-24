@@ -29,17 +29,17 @@ export async function getVectorStore() {
     if (vectorStore) return vectorStore;
 
     try {
-        const text = await fs.readFile(path.join(process.cwd(), 'knowledge_base.txt'), 'utf-8');
-        const docs = text.split('\n').filter(line => line.trim()).map(line => new Document({ pageContent: line }));
+    const text = await fs.readFile(path.join(process.cwd(), 'knowledge_base.txt'), 'utf-8');
+    const docs = text.split('\n').filter(line => line.trim()).map(line => new Document({ pageContent: line }));
 
-        const embeddings = new GoogleGenerativeAIEmbeddings({
+    const embeddings = new GoogleGenerativeAIEmbeddings({
             apiKey: getGoogleApiKey(),
-            taskType: TaskType.RETRIEVAL_DOCUMENT,
-        });
+        taskType: TaskType.RETRIEVAL_DOCUMENT,
+    });
 
-        vectorStore = await HNSWLib.fromDocuments(docs, embeddings);
+    vectorStore = await HNSWLib.fromDocuments(docs, embeddings);
         logger.info('Vector store initialized successfully');
-        return vectorStore;
+    return vectorStore;
     } catch (error) {
         logger.error('Failed to initialize vector store', error);
         throw error;
@@ -178,7 +178,7 @@ User ID is required to query documents. Please log in and try again.`;
                 errorString.includes('not accessible') ||
                 errorString.includes('no documents') ||
                 errorString.includes('file search store is not properly initialized')) {
-                const noFilesMessage = `**No Documents Uploaded**
+            const noFilesMessage = `**No Documents Uploaded**
 
 I can't answer questions yet because no documents have been uploaded to your knowledge base.
 
@@ -269,16 +269,16 @@ Please try again in a moment.`;
 
 export async function addDocument(text: string) {
     try {
-        const vectorStore = await getVectorStore();
-        const splitter = new RecursiveCharacterTextSplitter({
-            chunkSize: 1000,
-            chunkOverlap: 200,
-        });
+    const vectorStore = await getVectorStore();
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+    });
 
-        const docs = await splitter.createDocuments([text]);
-        await vectorStore.addDocuments(docs);
+    const docs = await splitter.createDocuments([text]);
+    await vectorStore.addDocuments(docs);
         logger.info('Document added to vector store', { chunks: docs.length });
-        return docs.length;
+    return docs.length;
     } catch (error) {
         logger.error('Failed to add document to vector store', error);
         throw error;
