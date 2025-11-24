@@ -13,33 +13,33 @@ const MAX_UPLOADS_PER_WINDOW = 5; // Max 5 uploads per minute per user
 function checkRateLimit(userId: string): { allowed: boolean; timeUntilNext: number | null } {
     const now = Date.now();
     const timestamps = uploadTimestamps.get(userId) || [];
-    
+
     // Filter out timestamps older than the rate limit window
     const recentTimestamps = timestamps.filter(
         timestamp => now - timestamp < RATE_LIMIT_WINDOW
     );
-    
+
     if (recentTimestamps.length >= MAX_UPLOADS_PER_WINDOW) {
         const oldestTimestamp = Math.min(...recentTimestamps);
         const timeUntilNext = RATE_LIMIT_WINDOW - (now - oldestTimestamp);
         return { allowed: false, timeUntilNext };
     }
-    
+
     return { allowed: true, timeUntilNext: null };
 }
 
 function recordUpload(userId: string) {
     const now = Date.now();
     const timestamps = uploadTimestamps.get(userId) || [];
-    
+
     // Add current timestamp
     timestamps.push(now);
-    
+
     // Keep only recent timestamps (within 2x the window for safety)
     const recentTimestamps = timestamps.filter(
         timestamp => now - timestamp < RATE_LIMIT_WINDOW * 2
     );
-    
+
     uploadTimestamps.set(userId, recentTimestamps);
 }
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
                 { status: 401 }
             );
         }
-        
+
         if (!userId) {
             logger.warn('Unauthorized upload request attempt');
             return NextResponse.json(
@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
             fileName: result.fileName,
             storeName: result.storeName,
             isDuplicate: result.isDuplicate || false,
+            processingStatus: 'ready' as const, // Files are ready after upload completes
         });
     } catch (error) {
         logger.error('Upload error', error);

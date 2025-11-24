@@ -23,6 +23,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [isDuplicate, setIsDuplicate] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [processingStatus, setProcessingStatus] = useState<'uploading' | 'processing' | 'ready' | 'error' | null>(null);
 
     // Check rate limit
     const checkRateLimit = (): { allowed: boolean; timeUntilNext: number | null } => {
@@ -98,6 +99,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
             setUploadSuccess(false);
             setIsDuplicate(false);
             setErrorMessage(null);
+            setProcessingStatus(null);
         }
     }, []);
 
@@ -124,6 +126,63 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
             }
         },
     });
+
+    // Poll for processing status
+    const checkProcessingStatus = useCallback(async () => {
+        try {
+            const response = await fetch('/api/upload/status');
+            if (!response.ok) {
+                logger.error('Failed to check processing status', new Error(`Status: ${response.status}`));
+                return;
+            }
+            const data = await response.json();
+
+            if (data.allReady) {
+                setProcessingStatus('ready');
+                return true; // All files ready
+            } else if (data.processingCount > 0) {
+                setProcessingStatus('processing');
+                return false; // Still processing
+            } else if (data.errorCount > 0) {
+                setProcessingStatus('error');
+                setErrorMessage('Some files failed to process');
+                return true; // Stop polling on error
+            }
+            return true; // No files, stop polling
+        } catch (error) {
+            logger.error('Error checking processing status', error);
+            return true; // Stop polling on error
+        }
+    }, []);
+
+    // Start polling after successful upload
+    useEffect(() => {
+        if (!uploadSuccess || !file) return;
+
+        let pollCount = 0;
+        const maxPolls = 40; // 2 minutes max (40 * 3 seconds)
+        const pollInterval = 3000; // 3 seconds
+
+        const pollTimer = setInterval(async () => {
+            pollCount++;
+
+            const shouldStop = await checkProcessingStatus();
+
+            if (shouldStop || pollCount >= maxPolls) {
+                clearInterval(pollTimer);
+                if (pollCount >= maxPolls && processingStatus === 'processing') {
+                    setProcessingStatus('error');
+                    setErrorMessage('Processing timeout. Please try again.');
+                }
+            }
+        }, pollInterval);
+
+        // Initial check immediately
+        checkProcessingStatus();
+
+        return () => clearInterval(pollTimer);
+    }, [uploadSuccess, file, checkProcessingStatus, processingStatus]);
+
 
     const handleUpload = async () => {
         if (!file) return;
@@ -164,6 +223,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
             const result = await response.json();
             setUploadSuccess(true);
             setIsDuplicate(result.isDuplicate || false);
+            setProcessingStatus(result.processingStatus || 'processing');
             // Record successful upload for rate limiting
             recordUpload();
             // Keep file info visible, don't auto-remove
@@ -197,6 +257,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
         setUploadSuccess(false);
         setIsDuplicate(false);
         setErrorMessage(null);
+        setProcessingStatus(null);
     };
 
     // Auto-upload in compact mode when file is selected
@@ -214,16 +275,16 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                     {...getRootProps()}
                     className={clsx(
                         'relative rounded-md cursor-pointer transition-all duration-200 overflow-hidden group flex items-center gap-1.5',
-                        showText 
+                        showText
                             ? 'px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5'
                             : 'p-1.5',
                         uploading
                             ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
                             : uploadSuccess
-                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                            : isDragActive
-                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600 scale-105 shadow-lg shadow-blue-500/30'
-                            : 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 hover:from-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/50 dark:hover:to-indigo-800/50'
+                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                                : isDragActive
+                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 scale-105 shadow-lg shadow-blue-500/30'
+                                    : 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 hover:from-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/50 dark:hover:to-indigo-800/50'
                     )}
                     title={uploading ? 'Uploading...' : uploadSuccess ? 'Upload successful' : 'Upload file'}
                 >
@@ -242,7 +303,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                                 ? "text-white"
                                 : "text-gray-800 dark:text-gray-200"
                         )}>
-                            Upload Doc
+                            {uploading ? 'Uploading...' : processingStatus === 'processing' ? 'Processing...' : uploadSuccess ? 'Ready!' : 'Upload Doc'}
                         </span>
                     )}
                 </div>
@@ -376,8 +437,19 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                             // Upload state: Show upload button
                             <div className={clsx(
                                 "file-upload-pending-container bg-white dark:bg-gray-900 border rounded-lg p-2 sm:p-2.5 shadow-lg transition-all duration-300",
-                                "border-blue-200 dark:border-blue-800"
+                                processingStatus === 'processing' ? "border-blue-500 dark:border-blue-600" : "border-blue-200 dark:border-blue-800"
                             )}>
+                                {/* Show processing status if file is being processed */}
+                                {processingStatus === 'processing' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="file-processing-status mb-2 p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-700 rounded-lg flex items-center gap-2"
+                                    >
+                                        <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 animate-spin" />
+                                        <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Processing document...</span>
+                                    </motion.div>
+                                )}
                                 <div className="file-upload-pending-header flex items-center justify-between mb-2">
                                     <div className="file-upload-pending-file-info flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1">
                                         <motion.div
@@ -440,6 +512,18 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
                                         <p className="file-upload-pending-error-text text-xs text-red-700 dark:text-red-300 font-semibold text-center">
                                             {errorMessage}
                                         </p>
+                                    </motion.div>
+                                )}
+
+                                {/* Processing status message - Ready */}
+                                {processingStatus === 'ready' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="file-processing-ready mt-2 p-2 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-700 rounded-lg flex items-center gap-2"
+                                    >
+                                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
+                                        <span className="text-xs text-green-700 dark:text-green-300 font-medium">Ready to chat!</span>
                                     </motion.div>
                                 )}
                             </div>

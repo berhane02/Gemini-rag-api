@@ -10,15 +10,20 @@ import { getGoogleApiKey } from './env';
 const userFileStores = new Map<string, any>();
 let ai: GoogleGenAI | null = null;
 
+// Processing status type
+export type FileProcessingStatus = 'uploading' | 'processing' | 'ready' | 'error';
+
 // Track uploaded files per user to detect duplicates (in-memory)
-// Format: Map<userId_fileName_size, { userId, fileName, size, uploadedAt, storeName, fileDocumentName }>
-const uploadedFiles = new Map<string, { 
+// Format: Map<userId_fileName_size, { userId, fileName, size, uploadedAt, storeName, fileDocumentName, processingStatus }>
+const uploadedFiles = new Map<string, {
     userId: string;
-    fileName: string; 
-    size: number; 
+    fileName: string;
+    size: number;
     uploadedAt: Date;
     storeName?: string;
     fileDocumentName?: string | null;
+    processingStatus: FileProcessingStatus;
+    errorMessage?: string;
 }>();
 
 // Lock mechanism to prevent race conditions when creating stores
@@ -51,7 +56,7 @@ export async function getOrCreateFileSearchStore(userId: string) {
     // Create a promise for store creation and store it to prevent concurrent creation
     const creationPromise = (async () => {
         const client = await getAI();
-        
+
         try {
             // Double-check after acquiring lock (another request might have created it)
             if (userFileStores.has(userId)) {
@@ -59,11 +64,11 @@ export async function getOrCreateFileSearchStore(userId: string) {
                 logger.debug('Store was created by another request', { userId, storeName: store.name });
                 return store;
             }
-            
+
             logger.info('Creating new file search store', { userId });
             // Create user-specific store with user ID in display name
             const storeDisplayName = `RAG-Chatbot-Store-${userId}`;
-            
+
             const newStore = await client.fileSearchStores.create({
                 config: {
                     displayName: storeDisplayName
@@ -75,10 +80,10 @@ export async function getOrCreateFileSearchStore(userId: string) {
                 storeName: newStore.name,
                 displayName: storeDisplayName,
             });
-            
+
             // Store it in the user-specific map
             userFileStores.set(userId, newStore);
-            
+
             return newStore;
         } catch (error) {
             logger.error('Error creating file search store', error, { userId });
@@ -91,7 +96,7 @@ export async function getOrCreateFileSearchStore(userId: string) {
 
     // Store the promise to prevent concurrent creation
     storeCreationPromises.set(userId, creationPromise);
-    
+
     return await creationPromise;
 }
 
@@ -105,7 +110,7 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
 
     try {
         const existingFile = uploadedFiles.get(fileKey);
-        
+
         if (existingFile && existingFile.userId === userId) {
             logger.info('File already uploaded', { userId, fileName });
             const userStore = userFileStores.get(userId);
@@ -120,7 +125,7 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
 
         const client = await getAI();
         const store = await getOrCreateFileSearchStore(userId);
-        
+
         // Double-check for duplicate after getting store (race condition protection)
         // Another concurrent request might have uploaded the same file
         const existingFileAfterStore = uploadedFiles.get(fileKey);
@@ -164,12 +169,12 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
             await new Promise(resolve => setTimeout(resolve, 5000));
             operation = await client.operations.get({ operation });
             attempts++;
-            
+
             if (operation.error) {
                 logger.error('Operation error', operation.error, { userId, fileName });
                 throw new Error(`Upload operation failed: ${JSON.stringify(operation.error)}`);
             }
-            
+
             if (attempts % 6 === 0) {
                 logger.debug('Still processing upload', { attempts, elapsedSeconds: attempts * 5 });
             }
@@ -188,14 +193,14 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
 
         // Log operation response details
         logger.info('Operation completed successfully', { operationName: operation.name });
-        
+
         // Check if response contains file information
         let fileDocumentName = null;
         if (operation.response) {
             const responseData = operation.response as any;
-            fileDocumentName = responseData.fileSearchDocument?.name || 
-                              responseData.document?.name ||
-                              responseData.name;
+            fileDocumentName = responseData.fileSearchDocument?.name ||
+                responseData.document?.name ||
+                responseData.name;
             logger.debug('File document created', { fileDocumentName, responseKeys: Object.keys(responseData) });
         }
 
@@ -214,7 +219,7 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
             fileKey,
             fileSize: fileBuffer.length,
         });
-        
+
         // Track the uploaded file with store reference and user ID
         uploadedFiles.set(fileKey, {
             userId,
@@ -222,9 +227,10 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
             size: fileBuffer.length,
             uploadedAt: new Date(),
             storeName: store.name,
-            fileDocumentName: fileDocumentName
+            fileDocumentName: fileDocumentName,
+            processingStatus: 'ready' // File is ready after indexing wait
         });
-        
+
         const userFileCount = Array.from(uploadedFiles.values()).filter(f => f.userId === userId).length;
         logger.debug('File tracked successfully', {
             userId,
@@ -233,17 +239,17 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
                 .filter(f => f.userId === userId)
                 .map(f => `${f.fileName} (store: ${f.storeName})`),
         });
-        
-        return { 
-            success: true, 
-            fileName, 
+
+        return {
+            success: true,
+            fileName,
             storeName: store.name,
             operationName: operation.name,
             isDuplicate: false
         };
-        } catch (error: any) {
+    } catch (error: any) {
         logger.error('Error uploading to Gemini', error, { userId, fileName });
-        
+
         // Check if error indicates file already exists
         const errorMessage = error?.message || JSON.stringify(error);
         if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
@@ -254,9 +260,10 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
                 fileName,
                 size: fileBuffer.length,
                 uploadedAt: new Date(),
-                storeName: userStore?.name || null
+                storeName: userStore?.name || null,
+                processingStatus: 'ready' // Assume ready if duplicate
             });
-            
+
             return {
                 success: true,
                 fileName,
@@ -265,7 +272,7 @@ export async function uploadFileToGemini(fileBuffer: Buffer, fileName: string, m
                 message: 'File already exists in the store'
             };
         }
-        
+
         throw error;
     }
 }
@@ -324,7 +331,7 @@ export async function queryWithFileSearch(query: string, userId: string) {
             throw error;
         }
     }
-    
+
     throw lastError || new Error("No available models found");
 }
 
@@ -337,7 +344,7 @@ export async function queryWithFileSearchStream(query: string, userId: string) {
     const store = await getOrCreateFileSearchStore(userId);
 
     logger.info('Querying with File Search', { userId, storeName: store.name, queryLength: query.length });
-    
+
     // Verify store exists and warn if it might be empty
     if (!store?.name) {
         logger.error('File search store name is missing', undefined, { userId });
@@ -349,7 +356,7 @@ export async function queryWithFileSearchStream(query: string, userId: string) {
     // Even if files exist in Gemini, we should try to query and let Gemini handle empty stores
     const userTrackedFiles = Array.from(uploadedFiles.values()).filter(f => f.userId === userId);
     const trackedFilesCount = userTrackedFiles.length;
-    
+
     if (trackedFilesCount === 0) {
         logger.warn('No files tracked in memory (normal after server restart)', { userId, storeName: store.name });
     } else {
@@ -376,7 +383,7 @@ export async function queryWithFileSearchStream(query: string, userId: string) {
             // Ensure we're using the exact store name format
             const storeName = store.name;
             logger.debug('Attempting query with model', { model, storeName, userId });
-            
+
             const response = await client.models.generateContentStream({
                 model: model,
                 contents: query,
@@ -390,7 +397,7 @@ export async function queryWithFileSearchStream(query: string, userId: string) {
                     ]
                 }
             });
-            
+
             logger.info('Successfully started streaming', { model, storeName, userId });
             return response;
         } catch (error: any) {
@@ -414,7 +421,7 @@ export async function queryWithFileSearchStream(query: string, userId: string) {
             throw error;
         }
     }
-    
+
     throw lastError || new Error("No available models found");
 }
 
@@ -432,11 +439,11 @@ export async function listFilesInStore(userId: string) {
     try {
         const client = await getAI();
         const store = await getOrCreateFileSearchStore(userId);
-        
+
         // Also return user's uploaded files
         const userFiles = Array.from(uploadedFiles.values()).filter(f => f.userId === userId);
         logger.debug('Listed files in store', { userId, storeName: store.name, fileCount: userFiles.length });
-        
+
         return { store, userFiles };
     } catch (error) {
         logger.error('Error listing files in store', error, { userId });
@@ -471,4 +478,65 @@ export function getUploadedFilesCount(userId?: string): number {
         return uploadedFiles.size;
     }
     return Array.from(uploadedFiles.values()).filter(f => f.userId === userId).length;
+}
+
+// Function to get processing status for all files of a user
+export function getFileProcessingStatus(userId: string) {
+    if (!userId) {
+        return {
+            files: [],
+            allReady: false,
+            processingCount: 0,
+            readyCount: 0,
+            errorCount: 0
+        };
+    }
+
+    const userFiles = Array.from(uploadedFiles.values())
+        .filter(f => f.userId === userId)
+        .map(f => ({
+            fileName: f.fileName,
+            status: f.processingStatus,
+            uploadedAt: f.uploadedAt,
+            errorMessage: f.errorMessage,
+            size: f.size
+        }));
+
+    const processingCount = userFiles.filter(f => f.status === 'processing' || f.status === 'uploading').length;
+    const readyCount = userFiles.filter(f => f.status === 'ready').length;
+    const errorCount = userFiles.filter(f => f.status === 'error').length;
+    const allReady = userFiles.length > 0 && processingCount === 0 && errorCount === 0;
+
+    return {
+        files: userFiles,
+        allReady,
+        processingCount,
+        readyCount,
+        errorCount,
+        totalFiles: userFiles.length
+    };
+}
+
+// Function to update processing status for a specific file
+export function updateFileProcessingStatus(
+    userId: string,
+    fileName: string,
+    fileSize: number,
+    status: FileProcessingStatus,
+    errorMessage?: string
+) {
+    const fileKey = `${userId}_${fileName}_${fileSize}`;
+    const existingFile = uploadedFiles.get(fileKey);
+
+    if (existingFile && existingFile.userId === userId) {
+        uploadedFiles.set(fileKey, {
+            ...existingFile,
+            processingStatus: status,
+            errorMessage: errorMessage
+        });
+        logger.debug('Updated file processing status', { userId, fileName, status, errorMessage });
+        return true;
+    }
+
+    return false;
 }
