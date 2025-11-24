@@ -61,6 +61,7 @@ export default function RootLayout({
       <ClerkProvider
         signInFallbackRedirectUrl="/chat"
         signUpFallbackRedirectUrl="/chat"
+        afterSignOutUrl="/home"
       >
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
