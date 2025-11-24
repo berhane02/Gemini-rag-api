@@ -36,13 +36,6 @@ export default function LandingPage() {
     const clerk = useClerk();
     const router = useRouter();
     
-    // Redirect authenticated users to chat immediately
-    useEffect(() => {
-        if (!isLoading && user) {
-            router.replace('/chat');
-        }
-    }, [user, isLoading, router]);
-    
     const handleLogin = useCallback(() => {
         // If user is already authenticated, go to chat
         if (user) {
@@ -75,11 +68,6 @@ export default function LandingPage() {
             description: 'Your data is protected with enterprise-grade security'
         }
     ], []);
-
-    // If authenticated, show nothing (will redirect via useEffect)
-    if (!isLoading && user) {
-        return null;
-    }
 
     return (
         <div className="min-h-screen w-full bg-white dark:bg-[#0a0a0a] flex flex-col items-center justify-center p-4 overflow-hidden relative transition-colors duration-300">

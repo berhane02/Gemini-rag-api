@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, File, X, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
@@ -49,7 +50,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
 
             return { allowed: true, timeUntilNext: null };
         } catch (error) {
-            console.error('Error checking rate limit:', error);
+            logger.error('Error checking rate limit', error);
             return { allowed: true, timeUntilNext: null };
         }
     };
@@ -73,7 +74,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
 
             localStorage.setItem(RATE_LIMIT_STORAGE_KEY, JSON.stringify(recentTimestamps));
         } catch (error) {
-            console.error('Error recording upload:', error);
+            logger.error('Error recording upload', error);
         }
     };
 
@@ -167,7 +168,7 @@ export default function FileUpload({ compact = false, showText = false }: FileUp
             recordUpload();
             // Keep file info visible, don't auto-remove
         } catch (error) {
-            console.error('Upload error:', error);
+            logger.error('Upload error', error);
             let errorMsg = 'Failed to upload file';
 
             if (error instanceof Error) {

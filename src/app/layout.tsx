@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import { UserProvider } from '@/contexts/UserContext';
@@ -22,11 +22,15 @@ export const metadata: Metadata = {
   description: "Ask questions about your uploaded documents using AI-powered RAG technology",
   keywords: ["RAG", "chatbot", "AI", "document analysis", "Q&A"],
   authors: [{ name: "RAG Chatbot Team" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: {
     index: true,
     follow: true,
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({

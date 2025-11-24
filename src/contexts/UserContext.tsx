@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode, useState, useEffect, useRef, useCallback } from 'react';
 import { useUser as useClerkUser } from '@clerk/nextjs';
+import { logger } from '@/lib/logger';
 
 interface User {
     sub?: string;
@@ -55,7 +56,7 @@ function clearUserCache(userId?: string) {
             });
         }
     } catch (err) {
-        console.error('Error clearing cache:', err);
+        logger.error('Error clearing cache', err);
     }
 }
 
@@ -70,7 +71,7 @@ function clearPreviousUserCache(currentUserId: string) {
         // Update current user ID
         localStorage.setItem(CURRENT_USER_KEY, currentUserId);
     } catch (err) {
-        console.error('Error clearing previous user cache:', err);
+        logger.error('Error clearing previous user cache', err);
     }
 }
 
@@ -91,7 +92,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         // Set a timeout to prevent infinite loading if Clerk never loads
         const timeoutId = setTimeout(() => {
             if (!clerkUser.isLoaded) {
-                console.warn('Clerk is taking longer than expected to load. Setting loading to false.');
+                logger.warn('Clerk is taking longer than expected to load. Setting loading to false.');
                 setUser(null);
                 setIsLoading(false);
             }
