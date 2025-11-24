@@ -151,6 +151,10 @@ export async function POST(req: NextRequest) {
             isDuplicate: result.isDuplicate,
         });
 
+        // Return processing status - files start as 'processing' after upload
+        // The background verification will update to 'ready' when complete
+        const processingStatus = result.isDuplicate ? 'ready' as const : 'processing' as const;
+
         return NextResponse.json({
             success: true,
             message: result.isDuplicate
@@ -159,7 +163,7 @@ export async function POST(req: NextRequest) {
             fileName: result.fileName,
             storeName: result.storeName,
             isDuplicate: result.isDuplicate || false,
-            processingStatus: 'ready' as const, // Files are ready after upload completes
+            processingStatus,
         });
     } catch (error) {
         logger.error('Upload error', error);
