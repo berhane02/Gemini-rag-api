@@ -46,7 +46,19 @@ function recordUpload(userId: string) {
 export async function POST(req: NextRequest) {
     try {
         // Check authentication with Clerk
-        const { userId } = await auth();
+        let userId: string | null = null;
+        try {
+            const authResult = await auth();
+            userId = authResult?.userId || null;
+        } catch (authError) {
+            logger.error('Clerk auth error', authError);
+            // If auth fails due to chunk loading, return unauthorized
+            return NextResponse.json(
+                { error: 'Authentication error. Please try logging in again.' },
+                { status: 401 }
+            );
+        }
+        
         if (!userId) {
             logger.warn('Unauthorized upload request attempt');
             return NextResponse.json(

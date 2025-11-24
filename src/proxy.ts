@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 
 // Define public routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
+  '/',
   '/home',
   '/api/webhooks/clerk',
 ]);

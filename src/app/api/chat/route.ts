@@ -7,7 +7,28 @@ import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
     try {
         // Check authentication with Clerk
-        const { userId } = await auth();
+        let userId: string | null = null;
+        try {
+            const authResult = await auth();
+            userId = authResult?.userId || null;
+        } catch (authError) {
+            logger.error('Clerk auth error', authError);
+            // If auth fails due to chunk loading, try to get userId from headers
+            const authHeader = req.headers.get('authorization');
+            if (!authHeader) {
+                logger.warn('Unauthorized chat request attempt - no auth header');
+                return NextResponse.json(
+                    { error: 'Unauthorized. Please log in to use the chat.' },
+                    { status: 401 }
+                );
+            }
+            // Fallback: return unauthorized if we can't authenticate
+            return NextResponse.json(
+                { error: 'Authentication error. Please try logging in again.' },
+                { status: 401 }
+            );
+        }
+        
         if (!userId) {
             logger.warn('Unauthorized chat request attempt');
             return NextResponse.json(

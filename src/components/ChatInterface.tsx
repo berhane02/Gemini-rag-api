@@ -10,6 +10,7 @@ import ConfirmDialog from './ConfirmDialog';
 import ConversationHistory from './ConversationHistory';
 import { User, Trash2, Home, History } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 interface Message {
     role: 'user' | 'model';
@@ -56,7 +57,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                     return JSON.parse(saved);
                 }
             } catch (error) {
-                console.error('Error loading messages from localStorage:', error);
+                logger.error('Error loading messages from localStorage', error);
             }
         }
         return [];
@@ -74,7 +75,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
             try {
                 localStorage.removeItem(previousStorageKey);
             } catch (error) {
-                console.error('Error clearing previous user messages:', error);
+                logger.error('Error clearing previous user messages', error);
             }
         }
         previousUserIdRef.current = userId;
@@ -93,7 +94,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                     setPreviousMessages([]);
                 }
             } catch (error) {
-                console.error('Error loading messages from localStorage:', error);
+                logger.error('Error loading messages from localStorage', error);
                 setPreviousMessages([]);
             }
         }
@@ -113,7 +114,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                 // Clear home messages after merging
                 setHomeMessages([]);
             } catch (error) {
-                console.error('Error saving messages to localStorage:', error);
+                logger.error('Error saving messages to localStorage', error);
             }
         }
         
@@ -199,7 +200,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
         try {
                 localStorage.setItem(storageKey, JSON.stringify(previousMessages));
         } catch (error) {
-            console.error('Error saving messages to localStorage:', error);
+            logger.error('Error saving messages to localStorage', error);
             }
         }
     }, [previousMessages, storageKey, userId, activeTab]);
@@ -216,7 +217,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                     }
                 }
             } catch (error) {
-                console.error('Error loading messages from localStorage:', error);
+                logger.error('Error loading messages from localStorage', error);
             }
         }
     }, [activeTab, userId, storageKey]);
@@ -247,7 +248,7 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                 try {
                     localStorage.removeItem(storageKey);
                 } catch (error) {
-                    console.error('Error clearing messages from localStorage:', error);
+                    logger.error('Error clearing messages from localStorage', error);
                 }
             }
         }
@@ -339,11 +340,11 @@ function ChatInterfaceComponent({ user }: ChatInterfaceProps) {
                         }
                     }, 100);
                 } catch (error) {
-                    console.error('Error auto-saving messages:', error);
+                    logger.error('Error auto-saving messages', error);
                 }
             }
         } catch (error) {
-            console.error('Error sending message:', error);
+            logger.error('Error sending message', error);
             let errorMessage = 'Sorry, I encountered an error. Please try again.';
 
             if (error instanceof Error) {

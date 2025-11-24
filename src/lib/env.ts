@@ -3,6 +3,8 @@
  * Ensures all required environment variables are present before the app starts
  */
 
+import { logger } from './logger';
+
 interface EnvConfig {
   GOOGLE_API_KEY: string;
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: string;
@@ -45,7 +47,7 @@ if (typeof window === 'undefined') {
   try {
     envConfig = validateEnv();
   } catch (error) {
-    console.error('Environment validation failed:', error);
+    logger.error('Environment validation failed', error);
     // In production, we might want to exit the process
     if (process.env.NODE_ENV === 'production') {
       throw error;
